@@ -1,0 +1,118 @@
+.app {
+  min-height: 100vh;
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.app-header {
+  background-color: #ffffff;
+  padding: 24px 32px;
+  border-radius: 12px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.app-header h1 {
+  margin: 0 0 8px;
+  color: #2563eb;
+  font-size: 32px;
+}
+
+.app-header p {
+  margin: 0;
+  color: #64748b;
+  font-size: 15px;
+}
+
+.app-main {
+  background-color: #ffffff;
+  padding: 32px;
+  border-radius: 12px;
+  min-height: 500px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.app-main h2 {
+  margin-top: 0;
+  color: #1e293b;
+  font-size: 24px;
+}
+
+.app-main p {
+  color: #64748b;
+  line-height: 1.6;
+}
+
+@media (max-width: 768px) {
+  .app {
+    padding: 12px;
+  }
+
+  .app-header {
+    padding: 20px;
+  }
+
+  .app-header h1 {
+    font-size: 26px;
+  }
+
+  .app-main {
+    padding: 20px;
+    min-height: 350px;
+  }
+
+  .app-main h2 {
+    font-size: 20px;
+  }
+}
+
+/* Навігація RoadMap */
+.app-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.app-nav a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 18px;
+  border-radius: 8px;
+  color: #475569;
+  background-color: #f1f5f9;
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.app-nav a:hover {
+  background-color: #dbeafe;
+  color: #2563eb;
+}
+
+.app-nav a.active {
+  background-color: #2563eb;
+  color: #ffffff;
+}
+
+.app-nav a:focus-visible {
+  outline: 3px solid #93c5fd;
+  outline-offset: 2px;
+}
+
+/* Навігація на мобільних пристроях */
+@media (max-width: 480px) {
+  .app-nav {
+    gap: 8px;
+  }
+
+  .app-nav a {
+    flex: 1 1 auto;
+    padding: 12px;
+    font-size: 14px;
+  }
+}
