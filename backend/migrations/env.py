@@ -1,23 +1,18 @@
 """Налаштування Alembic: звідки брати адресу БД і які моделі відстежувати."""
 
 import asyncio
-import importlib
-import pkgutil
 from logging.config import fileConfig
 
 from alembic import context
+from geoalchemy2 import alembic_helpers
 from sqlalchemy.ext.asyncio import create_async_engine
 
-import app.modules
+import app.models  # noqa: F401  - реєструє всі таблиці в Base.metadata
 from app.core.config import get_settings
 from app.core.database import Base
 
 if context.config.config_file_name is not None:
     fileConfig(context.config.config_file_name)
-
-# Підтягуємо models.py з усіх модулів, щоб Alembic бачив усі таблиці.
-for module in pkgutil.iter_modules(app.modules.__path__):
-    importlib.import_module(f"app.modules.{module.name}.models")
 
 target_metadata = Base.metadata
 DATABASE_URL = get_settings().database_url
@@ -27,15 +22,24 @@ POSTGIS_TABLES = {"spatial_ref_sys"}
 
 
 def include_object(obj, name, type_, reflected, compare_to) -> bool:
-    return not (type_ == "table" and name in POSTGIS_TABLES)
+    if type_ == "table" and name in POSTGIS_TABLES:
+        return False
+    return alembic_helpers.include_object(obj, name, type_, reflected, compare_to)
+
+
+GEO_OPTIONS = {
+    "include_object": include_object,
+    "process_revision_directives": alembic_helpers.writer,
+    "render_item": alembic_helpers.render_item,
+}
 
 
 def run_migrations_offline() -> None:
     context.configure(
         url=DATABASE_URL,
         target_metadata=target_metadata,
-        include_object=include_object,
         literal_binds=True,
+        **GEO_OPTIONS,
     )
     with context.begin_transaction():
         context.run_migrations()
@@ -45,7 +49,7 @@ def do_run_migrations(connection) -> None:
     context.configure(
         connection=connection,
         target_metadata=target_metadata,
-        include_object=include_object,
+        **GEO_OPTIONS,
     )
     with context.begin_transaction():
         context.run_migrations()

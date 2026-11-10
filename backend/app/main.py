@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import app.models  # noqa: F401  - реєструє всі моделі та зв'язки між ними
 from app.core.config import get_settings
 from app.core.database import get_session
 from app.modules.admin.router import router as admin_router

@@ -11,6 +11,26 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    services:
+      db:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: roadmap
+          POSTGRES_PASSWORD: roadmap
+          POSTGRES_DB: roadmap
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U roadmap"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: roadmap
+      POSTGRES_PASSWORD: roadmap
+      POSTGRES_DB: roadmap
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -21,5 +41,7 @@ jobs:
       - run: pip install -r requirements-dev.txt
       - name: Ruff
         run: ruff check .
+      - name: Міграції відповідають моделям
+        run: alembic upgrade head && alembic check
       - name: Pytest
         run: pytest

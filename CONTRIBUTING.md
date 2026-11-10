@@ -9,13 +9,13 @@
 
 | Тип | Коли | Приклад |
 |---|---|---|
-| `feature/` | нова функція | `feature/RM-12-create-report` |
-| `fix/` | виправлення помилки | `fix/RM-30-wrong-priority` |
-| `docs/` | документація | `docs/RM-5-use-cases` |
-| `chore/` | налаштування, залежності, інфраструктура | `chore/RM-3-backend-skeleton` |
-| `test/` | лише тести | `test/RM-41-report-api` |
+| `feature/` | нова функція | `feature/KAN-12-create-report` |
+| `fix/` | виправлення помилки | `fix/KAN-30-wrong-priority` |
+| `docs/` | документація | `docs/KAN-5-use-cases` |
+| `chore/` | налаштування, залежності, інфраструктура | `chore/KAN-3-backend-skeleton` |
+| `test/` | лише тести | `test/KAN-41-report-api` |
 
-`RM-12` — ключ задачі з Jira, щоб по гілці було видно, до якої задачі вона належить.
+`KAN-12` — ключ задачі з Jira, щоб по гілці було видно, до якої задачі вона належить.
 
 ## Коміти
 
@@ -35,7 +35,7 @@ refactor: move priority calculation to service
 ## Порядок роботи над задачею
 
 1. Оновити `main`: у VS Code перемкнутися на `main` → **Sync Changes** (або `git switch main` → `git pull`).
-2. Створити гілку: `git switch -c feature/RM-12-create-report`.
+2. Створити гілку: `git switch -c feature/KAN-12-create-report`.
 3. Робити зміни й коміти.
 4. Перед пушем перевірити: `docker compose exec api ruff check .` і `docker compose exec api pytest`.
 5. Запушити гілку (**Publish Branch** у VS Code) і на GitHub відкрити **Pull Request** у `main`.
