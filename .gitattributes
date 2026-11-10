@@ -1,5 +1,7 @@
 # Однакові закінчення рядків (LF) на Windows, Mac і в Docker.
 * text=auto eol=lf
+# Скрипти Windows мають бути з CRLF, інакше cmd може їх неправильно читати.
+*.bat text eol=crlf
 *.png binary
 *.jpg binary
 *.pdf binary

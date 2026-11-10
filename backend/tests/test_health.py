@@ -1,15 +1,17 @@
-from fastapi.testclient import TestClient
-
-from app.main import app
-
-client = TestClient(app)
+from httpx import AsyncClient
 
 
-def test_health() -> None:
-    response = client.get("/api/v1/health")
+async def test_health(client: AsyncClient) -> None:
+    response = await client.get("/api/v1/health")
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
 
 
-def test_docs_available() -> None:
-    assert client.get("/docs").status_code == 200
+async def test_health_db(client: AsyncClient) -> None:
+    response = await client.get("/api/v1/health/db")
+    assert response.status_code == 200
+    assert response.json()["postgis"].startswith("3.")
+
+
+async def test_docs_available(client: AsyncClient) -> None:
+    assert (await client.get("/docs")).status_code == 200

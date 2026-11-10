@@ -48,6 +48,7 @@ road-monitoring-system/
 │   └── requirements*.txt
 ├── frontend/                # React-застосунок (PWA)
 ├── docs/                    # документація, ADR, діаграми
+├── scripts/windows/         # запуск бекенду без Docker (.bat)
 ├── docker-compose.yml       # запуск усього однією командою
 ├── .env.example             # шаблон налаштувань
 └── CONTRIBUTING.md          # правила гілок, комітів і code review
@@ -57,22 +58,49 @@ road-monitoring-system/
 
 ## Як запустити
 
+Є два рівноцінні способи. Код однаковий, різниця лише в тому, чим запускати; для фронтенду бекенд в обох випадках доступний за адресою `http://localhost:8000/api/v1`.
+
+### Спосіб A — Docker (одна програма, все автоматично)
+
 Потрібно: [Git](https://git-scm.com/) і [Docker Desktop](https://www.docker.com/products/docker-desktop/).
 
-1. Склонуй репозиторій і відкрий папку в VS Code.
-2. Створи файл налаштувань із шаблону (один раз):
+1. Створи файл налаштувань із шаблону (один раз):
    - Windows (cmd): `copy .env.example .env`
    - macOS / Linux: `cp .env.example .env`
-3. Запусти:
+2. Запусти:
    ```
    docker compose up --build
    ```
-4. Перевірка:
-   - http://localhost:8000/docs — документація API (Swagger)
-   - http://localhost:8000/api/v1/health — має повернути `{"status": "ok"}`
-   - http://localhost:8000/api/v1/health/db — має показати версію PostGIS
+3. Демо-акаунти: `docker compose exec api python -m app.scripts.create_demo_users`
 
 Зупинити: `Ctrl + C`, потім `docker compose down`. Стерти дані БД повністю: `docker compose down -v`.
+
+### Спосіб B — без Docker (Windows)
+
+Потрібно:
+- [Python 3.12+](https://www.python.org/downloads/) — під час встановлення постав галочку **Add python.exe to PATH**;
+- [PostgreSQL](https://www.postgresql.org/download/windows/) з PostGIS — після встановлення PostgreSQL запуститься Stack Builder: вибери свій сервер → **Spatial Extensions** → **PostGIS**. Запам'ятай пароль користувача `postgres`.
+
+Далі двічі клацни по файлах у папці `scripts\windows`:
+
+| Файл | Що робить |
+|---|---|
+| `1-setup-backend.bat` | перший раз створить `.env` і відкриє його — впиши `POSTGRES_USER=postgres` і свій пароль, збережи й запусти скрипт ще раз; далі встановить бібліотеки, створить базу й таблиці |
+| `2-run-backend.bat` | запускає бекенд на http://localhost:8000 |
+| `3-test-backend.bat` | запускає автотести |
+| `4-create-demo-users.bat` | створює демо-акаунти |
+
+### Перевірка (для обох способів)
+
+- http://localhost:8000/docs — документація API (Swagger)
+- http://localhost:8000/api/v1/health/db — має показати версію PostGIS
+
+### Для фронтенду
+
+- Адреса API: `http://localhost:8000/api/v1` (краще винести у змінну `VITE_API_URL`, щоб потім легко змінити на адресу сервера).
+- Дозволені адреси фронтенду задаються в `.env` → `CORS_ORIGINS` (за замовчуванням `http://localhost:5173`).
+- Вхід: `POST /auth/login` (форма `username` = email, `password`) → `access_token`; далі в кожному запиті заголовок `Authorization: Bearer <access_token>`.
+- Які кнопки показувати: `GET /auth/me/permissions`.
 
 ### Корисні команди
 
