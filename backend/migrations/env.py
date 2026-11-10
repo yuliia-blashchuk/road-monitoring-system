@@ -17,12 +17,20 @@ if context.config.config_file_name is not None:
 target_metadata = Base.metadata
 DATABASE_URL = get_settings().database_url
 
-# Службові таблиці PostGIS не чіпаємо.
-POSTGIS_TABLES = {"spatial_ref_sys"}
-
 
 def include_object(obj, name, type_, reflected, compare_to) -> bool:
-    if type_ == "table" and name in POSTGIS_TABLES:
+    """Порівнюємо лише таблиці проєкту.
+
+    Образ postgis/postgis разом із PostGIS встановлює розширення topology і tiger
+    (геокодер адрес США) з десятками службових таблиць. Таблиці, яких немає в
+    моделях, і їхні індекси Alembic не чіпає, тому `alembic check` не вимагає
+    їх видаляти. Наслідок: видалення моделі не створить DROP TABLE автоматично -
+    таку міграцію треба написати вручну.
+    """
+    if type_ == "table" and reflected and compare_to is None:
+        return False
+    table = getattr(obj, "table", None)
+    if reflected and table is not None and table.name not in target_metadata.tables:
         return False
     return alembic_helpers.include_object(obj, name, type_, reflected, compare_to)
 
