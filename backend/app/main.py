@@ -9,6 +9,7 @@ import app.models  # noqa: F401  - реєструє всі моделі та з�
 from app.core.config import get_settings
 from app.core.database import get_session
 from app.core.request_context import RequestContextMiddleware
+from app.modules.admin.router import public_router as reference_router
 from app.modules.admin.router import router as admin_router
 from app.modules.audit.router import router as audit_router
 from app.modules.dedup.router import router as dedup_router
@@ -50,6 +51,7 @@ async def health_db(session: AsyncSession = Depends(get_session)) -> dict:
 
 for module_router in (
     users_router,
+    reference_router,
     reports_router,
     routing_router,
     dedup_router,

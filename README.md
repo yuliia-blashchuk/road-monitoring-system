@@ -110,6 +110,26 @@ docker compose exec api python -m app.scripts.create_demo_users
 
 У Swagger (`/docs`) натисни **Authorize**, введи email у поле `username` і пароль — далі всі запити йдуть з токеном.
 
+## Права доступу (RBAC)
+
+Права задаються таблицею `access_policy` (матриця «роль × ресурс × дія», п. 3.4 звіту) і перевіряються на сервері для кожного запиту:
+
+```python
+from typing import Annotated
+from fastapi import Depends
+from app.core.access_control import AccessContext, require
+
+ChangeStatus = Annotated[AccessContext, Depends(require("report", "change_status"))]
+
+@router.patch("/reports/{report_id}/status")
+async def change_status(report_id: int, ctx: ChangeStatus, ...):
+    await ctx.ensure_target(entity_id=report_id, service_ids=[report.service_id, report.copy_service_id])
+```
+
+- немає політики для ролі → **403** і запис `ACCESS_DENIED` у журнал аудиту;
+- `ctx.scope` — область дії (`own`, `service`, `all`, `public`), `ensure_target()` перевіряє конкретний запис;
+- `app.core.classification.filter_request()` прибирає з відповіді поля, які роль бачити не повинна.
+
 Тести працюють з окремою базою `roadmap_test`, яка створюється автоматично.
 
 ### Корисні команди

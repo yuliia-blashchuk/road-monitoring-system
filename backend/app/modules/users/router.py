@@ -5,6 +5,8 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, status
 from fastapi.security import OAuth2PasswordRequestForm
 
+from app.core.access_control import access_role, list_permissions
+from app.modules.admin.schemas import AccessPolicyOut
 from app.modules.users import service
 from app.modules.users.dependencies import CurrentUser, SessionDep
 from app.modules.users.schemas import RegisterRequest, TokenOut, UserOut
@@ -41,3 +43,14 @@ async def login(
 @router.get("/me", response_model=UserOut, summary="Поточний користувач")
 async def me(user: CurrentUser, session: SessionDep) -> UserOut:
     return await service.profile(session, user)
+
+
+@router.get(
+    "/me/permissions",
+    response_model=list[AccessPolicyOut],
+    summary="Дозволені дії поточного користувача",
+)
+async def my_permissions(user: CurrentUser, session: SessionDep) -> list:
+    """Фронтенд показує лише доступні кнопки. Це зручність, а не захист:
+    кожен запит усе одно перевіряється на сервері."""
+    return await list_permissions(session, access_role(user))

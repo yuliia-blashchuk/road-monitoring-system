@@ -14,7 +14,10 @@ async def get_by_email(session: AsyncSession, email: str) -> User | None:
 
 
 async def get_by_id(session: AsyncSession, user_id: int) -> User | None:
-    return await session.get(User, user_id)
+    # Звичайний SELECT (а не session.get), щоб роль і служба завжди підвантажувались.
+    return await session.scalar(
+        select(User).where(User.id == user_id).execution_options(populate_existing=True)
+    )
 
 
 async def get_role(session: AsyncSession, code: str) -> Role:
