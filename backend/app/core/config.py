@@ -9,7 +9,9 @@ INSECURE_SECRETS = {"change-me", ""}
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    # .env шукається в корені репозиторію (запуск з папки backend без Docker)
+    # і в поточній папці. У Docker значення приходять зі змінних оточення.
+    model_config = SettingsConfigDict(env_file=("../.env", ".env"), extra="ignore")
 
     app_name: str = "RoadMap API"
     environment: str = "local"

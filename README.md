@@ -48,6 +48,7 @@ road-monitoring-system/
 │   └── requirements*.txt
 ├── frontend/                # React-застосунок (PWA)
 ├── docs/                    # документація, ADR, діаграми
+├── scripts/windows/         # запуск бекенду без Docker (.bat)
 ├── docker-compose.yml       # запуск усього однією командою
 ├── .env.example             # шаблон налаштувань
 └── CONTRIBUTING.md          # правила гілок, комітів і code review
@@ -57,80 +58,49 @@ road-monitoring-system/
 
 ## Як запустити
 
+Є два рівноцінні способи. Код однаковий, різниця лише в тому, чим запускати; для фронтенду бекенд в обох випадках доступний за адресою `http://localhost:8000/api/v1`.
+
+### Спосіб A — Docker (одна програма, все автоматично)
+
 Потрібно: [Git](https://git-scm.com/) і [Docker Desktop](https://www.docker.com/products/docker-desktop/).
 
-1. Склонуй репозиторій і відкрий папку в VS Code.
-2. Створи файл налаштувань із шаблону (один раз):
+1. Створи файл налаштувань із шаблону (один раз):
    - Windows (cmd): `copy .env.example .env`
    - macOS / Linux: `cp .env.example .env`
-3. Запусти:
+2. Запусти:
    ```
    docker compose up --build
    ```
-4. Перевірка:
-   - http://localhost:8000/docs — документація API (Swagger)
-   - http://localhost:8000/api/v1/health — має повернути `{"status": "ok"}`
-   - http://localhost:8000/api/v1/health/db — має показати версію PostGIS
+3. Демо-акаунти: `docker compose exec api python -m app.scripts.create_demo_users`
 
 Зупинити: `Ctrl + C`, потім `docker compose down`. Стерти дані БД повністю: `docker compose down -v`.
 
-## База даних
+### Спосіб B — без Docker (Windows)
 
-PostgreSQL 16 + PostGIS. Схема створюється міграціями Alembic автоматично під час `docker compose up` (`alembic upgrade head`):
+Потрібно:
+- [Python 3.12+](https://www.python.org/downloads/) — під час встановлення постав галочку **Add python.exe to PATH**;
+- [PostgreSQL](https://www.postgresql.org/download/windows/) з PostGIS — після встановлення PostgreSQL запуститься Stack Builder: вибери свій сервер → **Spatial Extensions** → **PostGIS**. Запам'ятай пароль користувача `postgres`.
 
-| Міграція | Що робить |
+Далі двічі клацни по файлах у папці `scripts\windows`:
+
+| Файл | Що робить |
 |---|---|
-| `0001` | вмикає PostGIS |
-| `0002` | таблиці за ER-моделлю (15 таблиць), обмеження CHECK/UNIQUE, геоіндекси, тригери незмінності журналів |
-| `0003` | довідники: ролі, типи проблем, служби, межа міста, правила маршрутизації, політики доступу (RBAC) |
+| `1-setup-backend.bat` | перший раз створить `.env` і відкриє його — впиши `POSTGRES_USER=postgres` і свій пароль, збережи й запусти скрипт ще раз; далі встановить бібліотеки, створить базу й таблиці |
+| `2-run-backend.bat` | запускає бекенд на http://localhost:8000 |
+| `3-test-backend.bat` | запускає автотести |
+| `4-create-demo-users.bat` | створює демо-акаунти |
 
-Підключитися до БД з комп'ютера (DBeaver, pgAdmin): `localhost:5432`, база/користувач/пароль — з `.env`.
+### Перевірка (для обох способів)
 
-## Вхід і демо-користувачі
+- http://localhost:8000/docs — документація API (Swagger)
+- http://localhost:8000/api/v1/health/db — має показати версію PostGIS
 
-- `POST /api/v1/auth/register` — реєстрація водія (обов'язкові згоди `terms` і `personal_data`).
-- `POST /api/v1/auth/login` — вхід, повертає JWT-токен (поле `username` — це email).
-- `GET /api/v1/auth/me` — поточний користувач.
+### Для фронтенду
 
-Створити демо-акаунти для кожної ролі (пароль `Demo12345`):
-
-```
-docker compose exec api python -m app.scripts.create_demo_users
-```
-
-| Email | Роль |
-|---|---|
-| driver@roadmap.local | Водій |
-| dispatcher@roadmap.local | Диспетчер комунальної служби |
-| operator@roadmap.local | Оператор комунальної служби |
-| police@roadmap.local | Дорожня поліція |
-| contractor@roadmap.local | Підрядник |
-| admin@roadmap.local | Адміністратор |
-| dg@roadmap.local | Data Governance |
-
-У Swagger (`/docs`) натисни **Authorize**, введи email у поле `username` і пароль — далі всі запити йдуть з токеном.
-
-## Права доступу (RBAC)
-
-Права задаються таблицею `access_policy` (матриця «роль × ресурс × дія», п. 3.4 звіту) і перевіряються на сервері для кожного запиту:
-
-```python
-from typing import Annotated
-from fastapi import Depends
-from app.core.access_control import AccessContext, require
-
-ChangeStatus = Annotated[AccessContext, Depends(require("report", "change_status"))]
-
-@router.patch("/reports/{report_id}/status")
-async def change_status(report_id: int, ctx: ChangeStatus, ...):
-    await ctx.ensure_target(entity_id=report_id, service_ids=[report.service_id, report.copy_service_id])
-```
-
-- немає політики для ролі → **403** і запис `ACCESS_DENIED` у журнал аудиту;
-- `ctx.scope` — область дії (`own`, `service`, `all`, `public`), `ensure_target()` перевіряє конкретний запис;
-- `app.core.classification.filter_request()` прибирає з відповіді поля, які роль бачити не повинна.
-
-Тести працюють з окремою базою `roadmap_test`, яка створюється автоматично.
+- Адреса API: `http://localhost:8000/api/v1` (краще винести у змінну `VITE_API_URL`, щоб потім легко змінити на адресу сервера).
+- Дозволені адреси фронтенду задаються в `.env` → `CORS_ORIGINS` (за замовчуванням `http://localhost:5173`).
+- Вхід: `POST /auth/login` (форма `username` = email, `password`) → `access_token`; далі в кожному запиті заголовок `Authorization: Bearer <access_token>`.
+- Які кнопки показувати: `GET /auth/me/permissions`.
 
 ### Корисні команди
 
