@@ -2,7 +2,10 @@
 
 from functools import lru_cache
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+INSECURE_SECRETS = {"change-me", ""}
 
 
 class Settings(BaseSettings):
@@ -21,10 +24,22 @@ class Settings(BaseSettings):
 
     # Безпека (JWT) — справжнє значення тільки в .env
     jwt_secret: str = "change-me"
+    jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 60
+
+    # Актуальна версія текстів згоди (п. 3.5). Зміна версії вимагає повторної згоди.
+    consent_version: str = "1.0"
 
     # Звідки фронтенд може звертатися до API (через кому)
     cors_origins: str = "http://localhost:5173"
+
+    @model_validator(mode="after")
+    def _secret_must_be_set_outside_local(self) -> "Settings":
+        if self.environment not in {"local", "test"} and (
+            self.jwt_secret in INSECURE_SECRETS or len(self.jwt_secret) < 32
+        ):
+            raise ValueError("JWT_SECRET має бути заданий у .env і містити щонайменше 32 символи")
+        return self
 
     @property
     def database_url(self) -> str:

@@ -86,6 +86,30 @@ PostgreSQL 16 + PostGIS. Схема створюється міграціями 
 
 Підключитися до БД з комп'ютера (DBeaver, pgAdmin): `localhost:5432`, база/користувач/пароль — з `.env`.
 
+## Вхід і демо-користувачі
+
+- `POST /api/v1/auth/register` — реєстрація водія (обов'язкові згоди `terms` і `personal_data`).
+- `POST /api/v1/auth/login` — вхід, повертає JWT-токен (поле `username` — це email).
+- `GET /api/v1/auth/me` — поточний користувач.
+
+Створити демо-акаунти для кожної ролі (пароль `Demo12345`):
+
+```
+docker compose exec api python -m app.scripts.create_demo_users
+```
+
+| Email | Роль |
+|---|---|
+| driver@roadmap.local | Водій |
+| dispatcher@roadmap.local | Диспетчер комунальної служби |
+| operator@roadmap.local | Оператор комунальної служби |
+| police@roadmap.local | Дорожня поліція |
+| contractor@roadmap.local | Підрядник |
+| admin@roadmap.local | Адміністратор |
+| dg@roadmap.local | Data Governance |
+
+У Swagger (`/docs`) натисни **Authorize**, введи email у поле `username` і пароль — далі всі запити йдуть з токеном.
+
 Тести працюють з окремою базою `roadmap_test`, яка створюється автоматично.
 
 ### Корисні команди
