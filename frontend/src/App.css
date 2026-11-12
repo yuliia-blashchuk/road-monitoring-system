@@ -1,3 +1,974 @@
+
+/* ========================================
+   RoadMap — головний інтерфейс KAN-53
+   ======================================== */
+
+.rm-shell,
+.rm-shell * {
+  box-sizing: border-box;
+}
+
+.rm-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: clamp(170px, 16vw, 226px) minmax(0, 1fr);
+  background: #f1f9fe;
+  color: #14345a;
+  font-family: 'Manrope', 'Segoe UI', Arial, sans-serif;
+}
+
+.rm-shell a {
+  text-decoration: none;
+}
+
+/* Бічна панель */
+
+.rm-sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  min-height: 580px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: linear-gradient(
+    180deg,
+    #f8fcff 0%,
+    #e5f5ff 100%
+  );
+  border-right: 1px solid #d8ebf8;
+}
+
+.rm-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 25px 16px 30px;
+  color: #15365d;
+  font-size: clamp(20px, 2vw, 26px);
+  font-weight: 800;
+  letter-spacing: -0.8px;
+  white-space: nowrap;
+}
+
+.rm-brand img {
+  width: 35px;
+  height: 43px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.rm-nav-caption {
+  padding: 0 20px;
+  margin: 1px 0 10px;
+  color: #7da5c2;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+}
+
+.rm-sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 10px;
+}
+
+.rm-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 13px;
+  border-radius: 12px;
+  color: #3a6588;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background 0.2s, color 0.2s;
+}
+
+.rm-nav-link:hover {
+  background: #e1f3ff;
+}
+
+.rm-nav-link.active {
+  background: #cfeeff;
+  color: #144776;
+  font-weight: 800;
+}
+
+.rm-nav-link svg {
+  flex-shrink: 0;
+}
+
+/* Декоративна нижня частина панелі */
+
+.rm-sidebar-bottom {
+  position: relative;
+  height: 190px;
+  margin-top: auto;
+  padding: 0 18px;
+  color: #78a4c1;
+  font-size: 11px;
+}
+
+.rm-sidebar-bottom > span {
+  display: block;
+  padding: 16px 0;
+  border-top: 1px solid #d0e9f8;
+}
+
+.rm-cityscape {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  gap: 3px;
+  border-bottom: 13px solid #a2d7f3;
+  opacity: 0.9;
+}
+
+.rm-cityscape i {
+  position: relative;
+  display: block;
+  width: 14%;
+  height: 45px;
+  background: #a3d9f5;
+  border-radius: 2px 2px 0 0;
+}
+
+.rm-cityscape i:nth-child(2) {
+  height: 64px;
+}
+
+.rm-cityscape i:nth-child(3) {
+  height: 54px;
+}
+
+.rm-cityscape i:nth-child(4) {
+  height: 81px;
+}
+
+.rm-cityscape i:nth-child(5) {
+  height: 42px;
+}
+
+.rm-cityscape i:nth-child(6) {
+  height: 68px;
+}
+
+.rm-cityscape i:nth-child(7) {
+  height: 51px;
+}
+
+.rm-cityscape i:nth-child(8) {
+  height: 70px;
+}
+
+.rm-cityscape i::after {
+  content: '▪ ▪';
+  position: absolute;
+  left: 3px;
+  top: 9px;
+  color: #e7f8ff;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* Робоча область */
+
+.rm-workspace {
+  min-width: 0;
+}
+
+.rm-topbar {
+  height: 78px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 0 clamp(18px, 2.3vw, 40px);
+  background: #ffffff;
+  border-bottom: 1px solid #deedf8;
+}
+
+/* Пошук */
+
+.rm-search {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(450px, 65%);
+  height: 42px;
+  padding: 0 12px;
+  border: 1px solid #d7eaf8;
+  border-radius: 13px;
+  background: #f1f9ff;
+  color: #2785c3;
+}
+
+.rm-search input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: #174a73;
+  font: inherit;
+  font-size: 12px;
+}
+
+.rm-search input::placeholder {
+  color: #8cabc5;
+}
+
+.rm-search button {
+  padding: 6px 9px;
+  border: 0;
+  border-radius: 8px;
+  background: #e0f1ff;
+  color: #357db2;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.rm-search button:hover {
+  background: #cde8fa;
+}
+
+/* Сповіщення та акаунт */
+
+.rm-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.rm-top-icon,
+.rm-avatar {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #d9ecf9;
+  border-radius: 50%;
+  background: #f3faff;
+  color: #2d8bc8;
+}
+
+.rm-top-icon {
+  position: relative;
+}
+
+.rm-notification-dot {
+  position: absolute;
+  right: 4px;
+  top: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f2ac42;
+}
+
+.rm-account {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #17375e;
+}
+
+.rm-avatar {
+  background: #d7efff;
+}
+
+.rm-account-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+}
+
+.rm-account-label small {
+  color: #8aa7bf;
+  font-size: 10px;
+}
+
+.rm-content {
+  width: 100%;
+  padding: 20px clamp(18px, 2.3vw, 40px) 40px;
+}
+
+/* Головна сторінка */
+
+.rm-dashboard {
+  max-width: 1460px;
+  margin: 0 auto;
+}
+
+.rm-page-title {
+  margin-bottom: 17px;
+}
+
+.rm-page-title h1 {
+  margin: 0 0 4px;
+  color: #16385e;
+  font-size: 27px;
+  font-weight: 800;
+  letter-spacing: -0.7px;
+}
+
+.rm-page-title p {
+  margin: 0;
+  color: #527c9b;
+  font-size: 12px;
+}
+
+/* Верхній банер */
+
+.rm-hero {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 25px;
+  min-height: 115px;
+  margin-bottom: 18px;
+  padding: 18px 27px;
+  overflow: hidden;
+  border: 1px solid #d7eaf9;
+  border-radius: 20px;
+  background: linear-gradient(
+    115deg,
+    #ffffff 0%,
+    #f3fbff 58%,
+    #e5f6ff 100%
+  );
+}
+
+.rm-hero-copy {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+}
+
+.rm-hero-copy h2 {
+  margin: 0 0 7px;
+  color: #193b60;
+  font-size: 20px;
+}
+
+.rm-hero-copy p {
+  margin: 0;
+  color: #557d9f;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.rm-hero-button {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  max-width: 172px;
+  min-height: 42px;
+  padding: 7px 12px;
+  border-radius: 9px;
+  background: linear-gradient(
+    100deg,
+    #65bce7,
+    #2d8dca
+  );
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.3;
+  text-align: center;
+  box-shadow: 0 3px 9px rgba(39, 140, 201, 0.16);
+}
+
+.rm-hero-button:hover {
+  filter: brightness(1.05);
+}
+
+.rm-hero-button > span {
+  font-size: 26px;
+  font-weight: 400;
+}
+
+.rm-skyline {
+  position: absolute;
+  right: -6px;
+  bottom: 0;
+  width: min(42%, 400px);
+  height: 102px;
+  pointer-events: none;
+}
+
+/* Статистичні картки */
+
+.rm-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 15px;
+  margin-bottom: 18px;
+}
+
+.rm-stat-card {
+  min-width: 0;
+  min-height: 78px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 16px;
+  border: 1px solid #dcebf7;
+  border-radius: 17px;
+  background: #ffffff;
+}
+
+.rm-stat-card > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rm-stat-card strong {
+  color: #14385f;
+  font-size: 25px;
+  line-height: 1.1;
+}
+
+.rm-stat-card div span {
+  color: #6587a3;
+  font-size: 11px;
+}
+
+.rm-stat-symbol {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 41px;
+  height: 41px;
+  border-radius: 50%;
+  font-size: 23px;
+  font-weight: 600;
+}
+
+.rm-stat-symbol--total {
+  background: #e4f4ff;
+  color: #2a90d0;
+}
+
+.rm-stat-symbol--new {
+  background: #e7f4ff;
+  color: #338fca;
+}
+
+.rm-stat-symbol--progress {
+  background: #fff4df;
+  color: #e6a23a;
+}
+
+.rm-stat-symbol--resolved {
+  background: #e1f6f1;
+  color: #23a78b;
+}
+
+/* Головні блоки */
+
+.rm-content-grid {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1.85fr)
+    minmax(245px, 1fr);
+  gap: 16px;
+  align-items: stretch;
+}
+
+.rm-panel {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid #dbeaf7;
+  border-radius: 18px;
+  background: #ffffff;
+}
+
+.rm-panel h2 {
+  margin: 0;
+  color: #17375b;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.rm-panel-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.rm-light-tag,
+.rm-small-tag {
+  padding: 6px 13px;
+  border-radius: 999px;
+  background: #e3f3ff;
+  color: #2c8ac6;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.rm-small-tag {
+  background: #f1f7fb;
+  color: #668fae;
+}
+
+/* Інтерактивна карта */
+
+.rm-map-panel .leaflet-container {
+  height: 330px !important;
+  z-index: 1;
+  border-radius: 13px !important;
+}
+
+.rm-map-panel select {
+  max-width: 100%;
+}
+
+.rm-map-panel > div:last-child > p {
+  margin-bottom: 0;
+  color: #81a0b9 !important;
+  font-size: 10px !important;
+}
+
+/* Права колонка */
+
+.rm-side-panels {
+  min-width: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 16px;
+}
+
+.rm-status-panel {
+  min-height: 197px;
+}
+
+.rm-status-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 12px;
+}
+
+/* Кругова діаграма */
+
+.rm-donut {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 132px;
+  height: 132px;
+  border-radius: 50%;
+}
+
+.rm-donut-center {
+  width: 87px;
+  height: 87px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  border-radius: 50%;
+  background: #ffffff;
+}
+
+.rm-donut-center strong {
+  font-size: 25px;
+  line-height: 1.15;
+}
+
+.rm-donut-center span {
+  color: #7c99b2;
+  font-size: 11px;
+}
+
+.rm-status-legend {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 10px;
+  min-width: 0;
+}
+
+.rm-status-legend > div {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #547999;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.rm-status-legend strong {
+  margin-left: auto;
+  color: #183a5c;
+}
+
+.rm-dot {
+  display: block;
+  flex-shrink: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.rm-dot--new {
+  background: #72b8e9;
+}
+
+.rm-dot--accepted {
+  background: #86a3bb;
+}
+
+.rm-dot--progress {
+  background: #f3b24e;
+}
+
+.rm-dot--resolved {
+  background: #34b49d;
+}
+
+/* Графік категорій */
+
+.rm-chart-panel {
+  min-height: 196px;
+}
+
+.rm-type-chart {
+  display: block;
+  width: 100%;
+  height: 105px;
+}
+
+.rm-chart-labels {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+  color: #7e9fb6;
+  font-size: 9px;
+}
+
+.rm-chart-labels span {
+  text-align: center;
+}
+
+/* Нещодавні події */
+
+.rm-recent-panel {
+  margin-top: 16px;
+}
+
+.rm-muted-note {
+  color: #8ba9be;
+  font-size: 11px;
+}
+
+.rm-recent-list {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.rm-event-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  min-width: 0;
+}
+
+.rm-event-icon {
+  display: block;
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  margin-top: 4px;
+  border-radius: 50%;
+  background: #ffc85e;
+  color: transparent;
+}
+
+.rm-event-icon--accident {
+  background: #e96e68;
+}
+
+.rm-event-icon--obstacle {
+  background: #9876d6;
+}
+
+.rm-event-icon--roadworks {
+  background: #5dafe3;
+}
+
+.rm-event-icon--traffic_light {
+  background: #e3a85e;
+}
+
+.rm-event-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.rm-event-info strong {
+  color: #20486a;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.rm-event-info span {
+  color: #7a9db7;
+  font-size: 10px;
+}
+
+.rm-event-status {
+  margin-left: auto;
+  padding: 5px 8px;
+  border-radius: 99px;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.rm-event-status--new {
+  color: #3685bc;
+  background: #e0f2ff;
+}
+
+.rm-event-status--accepted {
+  color: #916528;
+  background: #fff0d5;
+}
+
+.rm-event-status--progress {
+  color: #99701b;
+  background: #fff0ce;
+}
+
+.rm-event-status--resolved {
+  color: #259778;
+  background: #dff8ef;
+}
+
+.rm-search-note,
+.rm-no-results {
+  margin: 0 0 12px;
+  color: #688caa;
+  font-size: 12px;
+}
+
+/* Сторінки користувачів */
+
+.roadmap-role-page h2 {
+  color: #173a60;
+}
+
+.roadmap-role-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+}
+
+.roadmap-logout {
+  padding: 10px 16px;
+  border: 1px solid #cee5f5;
+  border-radius: 9px;
+  background: #eaf7ff;
+  color: #2b77ad;
+  cursor: pointer;
+}
+
+/* Адаптивність */
+
+@media (max-width: 1220px) {
+  .rm-content-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rm-side-panels {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: auto;
+  }
+
+  .rm-recent-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .rm-hero-copy h2 {
+    font-size: 18px;
+  }
+}
+
+@media (max-width: 850px) {
+  .rm-shell {
+    grid-template-columns: 70px minmax(0, 1fr);
+  }
+
+  .rm-brand {
+    padding: 18px 13px 30px;
+  }
+
+  .rm-brand > span,
+  .rm-nav-link span,
+  .rm-nav-caption,
+  .rm-sidebar-bottom {
+    display: none;
+  }
+
+  .rm-nav-link {
+    justify-content: center;
+    padding: 13px;
+  }
+
+  .rm-sidebar-nav {
+    padding: 0 7px;
+  }
+
+  .rm-hero {
+    flex-wrap: wrap;
+  }
+
+  .rm-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .rm-shell {
+    display: block;
+  }
+
+  .rm-sidebar {
+    position: relative;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .rm-brand {
+    padding: 10px 16px;
+  }
+
+  .rm-brand > span {
+    display: inline;
+  }
+
+  .rm-sidebar-nav {
+    flex-direction: row;
+    gap: 4px;
+    overflow-x: auto;
+    padding: 0 9px 10px;
+  }
+
+  .rm-nav-link {
+    flex-shrink: 0;
+    padding: 9px 11px;
+  }
+
+  .rm-nav-link span {
+    display: inline;
+    font-size: 11px;
+  }
+
+  .rm-topbar {
+    height: 65px;
+    padding: 0 12px;
+    gap: 10px;
+  }
+
+  .rm-search {
+    width: auto;
+    flex: 1;
+  }
+
+  .rm-account-label {
+    display: none;
+  }
+
+  .rm-top-actions {
+    gap: 6px;
+  }
+
+  .rm-content {
+    padding: 18px 12px 30px;
+  }
+
+  .rm-page-title h1 {
+    font-size: 23px;
+  }
+
+  .rm-hero {
+    padding: 17px;
+  }
+
+  .rm-skyline {
+    opacity: 0.35;
+    width: 62%;
+  }
+
+  .rm-hero-button {
+    max-width: 100%;
+  }
+
+  .rm-stats {
+    gap: 9px;
+  }
+
+  .rm-stat-card {
+    padding: 11px;
+    gap: 8px;
+  }
+
+  .rm-stat-card strong {
+    font-size: 21px;
+  }
+
+  .rm-stat-symbol {
+    width: 34px;
+    height: 34px;
+  }
+
+  .rm-side-panels {
+    grid-template-columns: 1fr;
+  }
+
+  .rm-recent-list {
+    grid-template-columns: 1fr;
+  }
+
+  .rm-panel {
+    padding: 13px;
+  }
+
+  .rm-map-panel .leaflet-container {
+    height: 360px !important;
+  }
+}
+
+/* ========================================
+   Базові стилі KAN-52
+   Сторінки входу та реєстрації
+   ======================================== */
+
 .app {
   min-height: 100vh;
   padding: 24px;
@@ -5,129 +976,26 @@
   margin: 0 auto;
 }
 
-.app-header {
-  background-color: #ffffff;
-  padding: 24px 32px;
-  border-radius: 12px;
-  margin-bottom: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-.app-header h1 {
-  margin: 0 0 8px;
-  color: #2563eb;
-  font-size: 32px;
-}
-
-.app-header p {
-  margin: 0;
-  color: #64748b;
-  font-size: 15px;
-}
-
 .app-main {
-  background-color: #ffffff;
+  min-height: 500px;
   padding: 32px;
   border-radius: 12px;
-  min-height: 500px;
+  background: #ffffff;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
-
-.app-main h2 {
-  margin-top: 0;
-  color: #1e293b;
-  font-size: 24px;
-}
-
-.app-main p {
-  color: #64748b;
-  line-height: 1.6;
-}
-
-@media (max-width: 768px) {
-  .app {
-    padding: 12px;
-  }
-
-  .app-header {
-    padding: 20px;
-  }
-
-  .app-header h1 {
-    font-size: 26px;
-  }
-
-  .app-main {
-    padding: 20px;
-    min-height: 350px;
-  }
-
-  .app-main h2 {
-    font-size: 20px;
-  }
-}
-
-/* Навігація RoadMap */
-.app-nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 24px;
-}
-
-.app-nav a {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 10px 18px;
-  border-radius: 8px;
-  color: #475569;
-  background-color: #f1f5f9;
-  text-decoration: none;
-  font-size: 15px;
-  font-weight: 500;
-  transition: background-color 0.2s;
-}
-
-.app-nav a:hover {
-  background-color: #dbeafe;
-  color: #2563eb;
-}
-
-.app-nav a.active {
-  background-color: #2563eb;
-  color: #ffffff;
-}
-
-.app-nav a:focus-visible {
-  outline: 3px solid #93c5fd;
-  outline-offset: 2px;
-}
-
-/* Навігація на мобільних пристроях */
-@media (max-width: 480px) {
-  .app-nav {
-    gap: 8px;
-  }
-
-  .app-nav a {
-    flex: 1 1 auto;
-    padding: 12px;
-    font-size: 14px;
-  }
-}
-
-
-/* KAN-52 — сторінки авторизації RoadMap */
 
 .auth-page {
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
   min-height: 550px;
   padding: 40px 20px;
   border-radius: 18px;
-  background: linear-gradient(145deg, #e9f6ff 0%, #f7fbff 100%);
+  background: linear-gradient(
+    145deg,
+    #e9f6ff,
+    #f7fbff
+  );
 }
 
 .auth-page * {
@@ -138,18 +1006,10 @@
   width: 100%;
   max-width: 440px;
   padding: 40px;
-  background: #ffffff;
   border: 1px solid #dcecf8;
   border-radius: 22px;
+  background: #ffffff;
   box-shadow: 0 16px 45px rgba(28, 91, 139, 0.1);
-}
-
-.auth-logo {
-  margin-bottom: 24px;
-  color: #143960;
-  font-size: 27px;
-  font-weight: 800;
-  letter-spacing: -0.8px;
 }
 
 .auth-card h1 {
@@ -159,12 +1019,6 @@
   line-height: 1.3;
 }
 
-.auth-card .auth-subtitle {
-  margin: 0 0 28px;
-  color: #718aa3;
-  font-size: 14px;
-}
-
 .auth-card form {
   display: flex;
   flex-direction: column;
@@ -172,10 +1026,10 @@
 }
 
 .auth-card form > label:not(.auth-checkbox) {
+  margin-top: 5px;
   color: #234568;
   font-size: 14px;
   font-weight: 600;
-  margin-top: 5px;
 }
 
 .auth-card form > input {
@@ -184,11 +1038,10 @@
   padding: 0 15px;
   border: 1px solid #d5e6f3;
   border-radius: 11px;
+  outline: none;
   background: #f8fcff;
   color: #143354;
   font-size: 14px;
-  outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .auth-card form > input:focus {
@@ -211,9 +1064,9 @@
 }
 
 .auth-checkbox input {
-  accent-color: #268fca;
   width: 16px;
   height: 16px;
+  accent-color: #268fca;
 }
 
 .auth-button {
@@ -223,20 +1076,19 @@
   padding: 12px 18px;
   border: 0;
   border-radius: 11px;
-  background: linear-gradient(90deg, #60b9e8, #227cb7);
+  background: linear-gradient(
+    90deg,
+    #60b9e8,
+    #227cb7
+  );
   color: #ffffff;
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
-  transition: filter 0.2s, transform 0.2s;
 }
 
 .auth-button:hover {
   filter: brightness(1.07);
-}
-
-.auth-button:active {
-  transform: scale(0.99);
 }
 
 .auth-button:focus-visible {
@@ -253,24 +1105,34 @@
   font-size: 13px;
 }
 
-.auth-card .auth-footer {
-  margin: 25px 0 0;
-  text-align: center;
-  color: #718aa3;
-  font-size: 13px;
-}
-
 .auth-footer a {
   color: #237fb9;
   font-weight: 700;
   text-decoration: none;
 }
 
-.auth-footer a:hover {
-  text-decoration: underline;
+.auth-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+  color: #143960;
+  font-size: 27px;
+  font-weight: 800;
 }
 
-/* Мобільна версія */
+.auth-logo img {
+  width: 42px;
+  height: 46px;
+  object-fit: contain;
+}
+
+.auth-logo span {
+  color: #143960;
+  font-size: 27px;
+  font-weight: 800;
+}
+
 @media (max-width: 480px) {
   .auth-page {
     min-height: 450px;
@@ -284,62 +1146,5 @@
 
   .auth-card h1 {
     font-size: 23px;
-  }
-}
-
-.auth-logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.auth-logo img {
-  width: 42px;
-  height: 46px;
-  object-fit: contain;
-}
-
-.auth-logo span {
-  color: #143960;
-  font-size: 27px;
-  font-weight: 800;
-  letter-spacing: -0.8px;
-}
-
-
-/* Логотип у шапці RoadMap */
-
-.site-brand {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.site-brand img {
-  width: 48px;
-  height: 54px;
-  object-fit: contain;
-}
-
-.site-brand h1 {
-  margin: 0 0 5px;
-  color: #143960;
-  font-size: 29px;
-  font-weight: 800;
-}
-
-.site-brand p {
-  margin: 0;
-  color: #718aa3;
-}
-
-@media (max-width: 480px) {
-  .site-brand img {
-    width: 39px;
-    height: 44px;
-  }
-
-  .site-brand h1 {
-    font-size: 24px;
   }
 }
