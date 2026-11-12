@@ -1,0 +1,414 @@
+/* RoadMap KAN-52 — екран входу за мобільним hi-fi прототипом Figma.
+   Референс: 07_mobile_login (390 x 844 px), розділ 5.1 звіту.
+   CSS імпортується ПІСЛЯ App.css. Впливає тільки на .auth-page--figma. */
+
+body:has(.auth-page--figma) {
+  background: #edf4f9;
+}
+
+.app:has(.auth-page--figma) {
+  width: 100%;
+  max-width: none;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+}
+
+.app:has(.auth-page--figma) .app-header {
+  display: none;
+}
+
+.app:has(.auth-page--figma) .app-main {
+  min-height: 100vh;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+.auth-page--figma,
+.auth-page--figma * {
+  box-sizing: border-box;
+}
+
+.auth-page--figma {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  width: 100%;
+  max-width: 390px; /* прототип у Figma має ширину 390 px */
+  min-height: 844px;
+  margin: 0 auto;
+  padding: 0 20px 48px;
+  border-radius: 0;
+  background: #f4faff;
+  background-image: linear-gradient(166deg, #f9fcff 0%, #edf8ff 25%, #f4faff 62%, #f8fcff 100%);
+  font-family: 'Manrope', 'Segoe UI', Arial, sans-serif;
+  color: #142d53;
+}
+
+/* Хвиля у верхній частині мобільного макета */
+.auth-page--figma::before {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  inset: 0 0 auto;
+  height: 115px;
+  background: linear-gradient(115deg, #ffffff 3%, #edf8ff 54%, #d9effd 100%);
+  clip-path: polygon(0 0, 100% 0, 100% 90%, 80% 100%, 59% 93%, 30% 98%, 0 89%);
+  pointer-events: none;
+}
+
+.auth-page--figma > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Верхній RoadMap із макета, нижче умовної системної панелі телефона */
+.auth-page--figma .auth-topbar {
+  display: flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+  padding: 49px 10px 0;
+}
+
+.auth-page--figma .auth-topbar img {
+  width: 32px;
+  height: 37px;
+  object-fit: contain;
+}
+
+.auth-page--figma .auth-topbar span {
+  color: #142d53;
+  font-size: 25px;
+  line-height: 1.2;
+  font-weight: 800;
+  letter-spacing: -0.7px;
+}
+
+.auth-page--figma .auth-shell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 350px;
+  margin: 29px 0 0;
+  padding: 0;
+  text-align: center;
+}
+
+.auth-page--figma .auth-hero-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0 0 44px;
+}
+
+.auth-page--figma .auth-hero-brand img {
+  width: 40px;
+  height: 46px;
+  object-fit: contain;
+}
+
+.auth-page--figma .auth-hero-brand span {
+  color: #142d53;
+  font-size: 25px;
+  font-weight: 800;
+  letter-spacing: -0.8px;
+}
+
+.auth-page--figma .auth-shell > h1 {
+  margin: 0 0 9px;
+  color: #142d53;
+  font-size: 23px;
+  font-weight: 800;
+  line-height: 1.3;
+  letter-spacing: -0.45px;
+}
+
+.auth-page--figma .auth-intro {
+  margin: 0 0 30px;
+  color: #365d82;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+/* Біла картка, як у прототипі 07_mobile_login */
+.auth-page--figma .auth-card {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 26px 22px 24px;
+  background: #ffffff;
+  border: 1px solid #d8e9f5;
+  border-radius: 20px;
+  box-shadow: 0 7px 19px rgba(39, 99, 145, 0.035);
+  text-align: left;
+}
+
+.auth-page--figma .auth-card h2 {
+  margin: 0 0 19px;
+  color: #142d53;
+  font-size: 19px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.auth-page--figma .auth-card form {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.auth-page--figma .auth-card form > label {
+  display: block;
+  margin: 0 0 9px;
+  color: #365d82;
+  font-size: 12px;
+  line-height: 1.35;
+  font-weight: 700;
+}
+
+.auth-page--figma .auth-card form > input {
+  width: 100%;
+  height: 47px;
+  min-height: 47px;
+  margin: 0 0 22px;
+  padding: 0 15px;
+  border: 1px solid #d8e9f5;
+  border-radius: 11px;
+  background: #fafdff;
+  color: #142d53;
+  font: inherit;
+  font-size: 13px;
+  outline: 0;
+}
+
+.auth-page--figma .auth-card form > input::placeholder { color: #7594ac; opacity: 1; }
+.auth-page--figma .auth-card form > input:focus { border-color: #4faade; box-shadow: 0 0 0 3px rgba(79, 170, 222, .13); }
+
+.auth-page--figma .auth-login-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin: 6px 0 18px;
+}
+
+.auth-page--figma .auth-forgot {
+  color: #2683c4;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.auth-page--figma .auth-card .auth-message {
+  margin: -8px 0 12px;
+  padding: 10px 12px;
+  background: #eaf5ff;
+  color: #245a83;
+  border-radius: 9px;
+  font-size: 12px;
+}
+
+.auth-page--figma .auth-button {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  width: 100%;
+  height: 51px;
+  min-height: 51px;
+  margin: 0;
+  padding: 0 16px;
+  border: none;
+  border-radius: 13px;
+  color: #ffffff;
+  background: linear-gradient(110deg, #64b7e4 0%, #287cb7 100%);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.auth-page--figma .auth-button svg { width: 19px; height: 19px; flex: none; }
+.auth-page--figma .auth-button:hover { filter: brightness(1.04); }
+.auth-page--figma .auth-button:focus-visible { outline: 3px solid #8bc9f2; outline-offset: 3px; }
+
+.auth-page--figma .auth-login-footer {
+  margin: 36px 0 0;
+  color: #7390ac;
+  text-align: center;
+}
+
+.auth-page--figma .auth-login-footer p { margin: 0; color: #7390ac; font-size: 12px; }
+.auth-page--figma .auth-login-footer a {
+  display: inline-block;
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  color: #2683c4;
+  font-weight: 800;
+  text-decoration: none;
+}
+.auth-page--figma .auth-login-footer a:hover { text-decoration: underline; }
+
+.auth-page--figma .auth-login-note {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 11px;
+  width: 100%;
+  margin: 50px 0 0;
+  padding: 0 18px;
+  color: #365d82;
+  font-size: 11px;
+  line-height: 1.35;
+}
+.auth-page--figma .auth-login-note svg { width: 21px; height: 24px; flex: none; color: #0a9e8c; }
+
+@media (max-width: 390px) {
+  .auth-page--figma { min-height: 100dvh; }
+}
+
+
+/* KAN-52: фінальні стилі полів, кнопок та сторінки реєстрації */
+.auth-page--figma .auth-show-password {
+  border: 0;
+  background: transparent;
+  color: #2683c4;
+  padding: 4px 0;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.auth-page--figma .auth-show-password:hover { text-decoration: underline; }
+.auth-page--figma .auth-button:disabled { opacity: .65; cursor: wait; }
+.auth-page--figma .auth-login-footer > p { margin: 0; }
+.auth-page--figma .auth-login-note a { color: inherit; text-decoration: none; }
+.auth-page--figma .auth-login-note a:hover { text-decoration: underline; }
+.auth-page--figma .auth-message--success { color: #167659; background: #eafaf4; }
+
+/* Для реєстрації застосовано ту саму візуальну систему, що й для входу. */
+.auth-page--register .auth-shell { max-width: 400px; }
+.auth-page--register .auth-hero-brand { margin-bottom: 18px; }
+.auth-page--register .auth-intro { max-width: 345px; }
+.auth-page--register .auth-card { padding-bottom: 30px; }
+.auth-page--register .auth-card form > input { margin-bottom: 15px; }
+.auth-page--register .auth-card .auth-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 10px 0 0;
+  color: #365d82;
+  font-size: 12px;
+  line-height: 1.5;
+  font-weight: 500;
+  cursor: pointer;
+}
+.auth-page--register .auth-checkbox input {
+  flex: none;
+  width: 17px;
+  height: 17px;
+  margin: 1px 0 0;
+  accent-color: #258dc7;
+}
+.auth-page--register .auth-card .auth-message { margin: 15px 0; }
+.auth-page--register .auth-button { justify-content: center; margin-top: 18px; }
+.auth-page--register { padding-bottom: 65px; }
+
+.roadmap-role-header { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+.roadmap-role-header h2 { margin: 0; color: #143960; }
+.roadmap-logout { border: 0; background: #e8f5fe; color: #1b71b1; padding: 12px 18px; border-radius: 12px; font: inherit; font-weight: 700; cursor: pointer; }
+.roadmap-logout:hover { background: #d9ecfc; }
+.roadmap-role-page > .auth-button { max-width: 260px; justify-content: center; }
+
+/* Desktop: форма праворуч, інформаційний блок ліворуч. */
+@media (min-width: 900px) {
+  .auth-page--figma {
+    max-width: none;
+    min-height: 100vh;
+    margin: 0;
+    padding: 0 5% 80px;
+    background: linear-gradient(135deg, #f0faff 0%, #e5f5ff 50%, #f7fbff 100%);
+  }
+  .auth-page--figma::before {
+    height: 180px;
+    background: linear-gradient(110deg, #fff, #e6f6ff 55%, #cdeaff);
+    clip-path: polygon(0 0, 100% 0, 100% 78%, 75% 93%, 45% 84%, 20% 100%, 0 87%);
+  }
+  .auth-page--figma .auth-topbar {
+    width: 100%;
+    max-width: 1180px;
+    align-self: center;
+    padding: 38px 0 0;
+    gap: 12px;
+  }
+  .auth-page--figma .auth-topbar img { width: 42px; height: 48px; }
+  .auth-page--figma .auth-topbar span { font-size: 29px; }
+  .auth-page--figma .auth-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(400px, 520px);
+    grid-template-rows: auto auto auto auto auto;
+    align-content: center;
+    align-items: start;
+    column-gap: 80px;
+    width: 100%;
+    max-width: 1180px;
+    min-height: 610px;
+    margin: 48px auto 0;
+    padding: 0;
+    text-align: left;
+  }
+  .auth-page--figma .auth-hero-brand { grid-column: 1; grid-row: 1; justify-content: flex-start; margin: 0 0 32px; }
+  .auth-page--figma .auth-shell > h1 {
+    grid-column: 1;
+    grid-row: 2;
+    margin: 0 0 16px;
+    font-size: clamp(32px, 3.2vw, 46px);
+    line-height: 1.2;
+  }
+  .auth-page--figma .auth-intro {
+    grid-column: 1;
+    grid-row: 3;
+    margin: 0 0 45px;
+    font-size: 18px;
+    line-height: 1.65;
+  }
+  .auth-page--figma .auth-card {
+    grid-column: 2;
+    grid-row: 1 / 6;
+    align-self: center;
+    width: 100%;
+    max-width: 520px;
+    padding: 42px 40px;
+    border-radius: 24px;
+    box-shadow: 0 15px 45px rgba(39,99,145,.08);
+  }
+  .auth-page--figma .auth-card h2 { font-size: 27px; margin-bottom: 28px; }
+  .auth-page--figma .auth-card form > label:not(.auth-checkbox) { font-size: 14px; margin-bottom: 10px; }
+  .auth-page--figma .auth-card form > input { height: 54px; min-height: 54px; padding: 0 17px; margin-bottom: 24px; font-size: 15px; border-radius: 12px; }
+  .auth-page--figma .auth-login-actions { margin: 0 0 24px; }
+  .auth-page--figma .auth-button { min-height: 55px; height: 55px; border-radius: 12px; justify-content: center; font-size: 16px; }
+  .auth-page--figma .auth-login-footer { grid-column: 1; grid-row: 4; margin: 0; text-align: left; }
+  .auth-page--figma .auth-login-footer p { font-size: 15px; }
+  .auth-page--figma .auth-login-footer a { font-size: 16px; }
+  .auth-page--figma .auth-login-note { grid-column: 1; grid-row: 5; margin: 26px 0 0; padding: 0; font-size: 14px; }
+
+  .auth-page--register .auth-shell { max-width: 1180px; min-height: 750px; }
+  .auth-page--register .auth-card { align-self: start; padding: 30px 38px; }
+  .auth-page--register .auth-card h2 { margin-bottom: 18px; }
+  .auth-page--register .auth-card form > input { height: 43px; min-height: 43px; margin-bottom: 13px; }
+  .auth-page--register .auth-card form > label:not(.auth-checkbox) { margin-bottom: 7px; }
+  .auth-page--register .auth-card .auth-checkbox { margin: 7px 0 0; font-size: 12px; }
+  .auth-page--register .auth-card .auth-button { margin-top: 12px; }
+}
+
+@media (min-width: 900px) and (max-width: 1150px) {
+  .auth-page--figma .auth-shell { grid-template-columns: minmax(0, 1fr) minmax(350px, 460px); column-gap: 36px; }
+  .auth-page--figma .auth-card { padding: 34px 30px; }
+}

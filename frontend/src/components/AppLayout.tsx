@@ -9,8 +9,14 @@ function AppLayout({ children }: AppLayoutProps) {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>RoadMap</h1>
-        <p>Система моніторингу стану доріг і ремонтних робіт</p>
+
+<div className="site-brand">
+  <img src="/roadmap-icon.png" alt="" />
+  <div>
+    <h1>RoadMap</h1>
+    <p>Система моніторингу стану доріг і ремонтних робіт</p>
+  </div>
+</div>
 
         <nav className="app-nav" aria-label="Основна навігація">
           <NavLink to="/" end>
