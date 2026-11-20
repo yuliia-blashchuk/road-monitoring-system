@@ -1,4 +1,3 @@
-
 import {
   useEffect,
   useState,
@@ -6,7 +5,6 @@ import {
   type ReactNode,
   type SyntheticEvent,
 } from 'react'
-
 import {
   BrowserRouter,
   Link,
@@ -15,24 +13,20 @@ import {
   useNavigate,
   useSearchParams,
 } from 'react-router'
-
 import RoadMapMap from './components/RoadMapMap'
+import ReportCreatePage from './pages/ReportCreatePage'
 import { mapEvents, type RoadEventStatus } from './data/mapEvents'
 import AppLayout from './components/AppLayout'
-
 import {
   getCurrentUser,
   loginUser,
   registerUser,
   type UserProfile,
 } from './services/authApi'
-
 import 'leaflet/dist/leaflet.css'
 import './App.css'
 import './RoadMap_KAN52_Figma_Login.css'
-
 const TOKEN_KEY = 'roadmap_access_token'
-
 // Перенаправлення користувача залежно від ролі
 function homeForRole(role: string): string {
   switch (role) {
@@ -51,7 +45,6 @@ function homeForRole(role: string): string {
       return '/'
   }
 }
-
 // Назви статусів для головної сторінки
 const EVENT_STATUS: Record<
   RoadEventStatus,
@@ -62,7 +55,6 @@ const EVENT_STATUS: Record<
   in_progress: { label: 'В роботі', className: 'progress' },
   resolved: { label: 'Усунена', className: 'resolved' },
 }
-
 // Картка статистики
 function StatCard({
   value,
@@ -83,7 +75,6 @@ function StatCard({
       >
         {symbol}
       </span>
-
       <div>
         <strong>{value}</strong>
         <span>{label}</span>
@@ -91,45 +82,33 @@ function StatCard({
     </div>
   )
 }
-
 // Головна сторінка з картою у стилі Figma
 function MapPage() {
   const [searchParams] = useSearchParams()
-
   const searchQuery = (searchParams.get('q') ?? '')
     .trim()
     .toLocaleLowerCase('uk')
-
   // Статистика за демонстраційними даними
   const total = mapEvents.length
-
   const newCount = mapEvents.filter(
     (event) => event.status === 'new'
   ).length
-
   const acceptedCount = mapEvents.filter(
     (event) => event.status === 'accepted'
   ).length
-
   const progressCount = mapEvents.filter(
     (event) => event.status === 'in_progress'
   ).length
-
   const resolvedCount = mapEvents.filter(
     (event) => event.status === 'resolved'
   ).length
-
   // Діаграма статусів
   const scale = total || 1
-
   const p1 = (newCount / scale) * 100
-
   const p2 =
     ((newCount + acceptedCount) / scale) * 100
-
   const p3 =
     ((newCount + acceptedCount + progressCount) / scale) * 100
-
   const ringBackground = `
     conic-gradient(
       #72b8e9 0% ${p1}%,
@@ -138,7 +117,6 @@ function MapPage() {
       #34b49d ${p3}% 100%
     )
   `
-
   // Дані графіка за категоріями
   const types = [
     { code: 'pothole', name: 'Ями' },
@@ -147,20 +125,17 @@ function MapPage() {
     { code: 'roadworks', name: 'Ремонти' },
     { code: 'traffic_light', name: 'Світлофори' },
   ]
-
   const typeCounts = types.map(
     (type) =>
       mapEvents.filter((event) => event.type === type.code)
         .length
   )
-
   const linePoints = typeCounts
     .map(
       (count, index) =>
         `${18 + index * 66},${90 - count * 18}`
     )
     .join(' ')
-
   // Пошук працює в списку демонстраційних подій
   const matchedEvents = mapEvents.filter(
     (event) =>
@@ -169,11 +144,9 @@ function MapPage() {
         .toLocaleLowerCase('uk')
         .includes(searchQuery)
   )
-
   const visibleEvents = searchQuery
     ? matchedEvents
     : matchedEvents.slice(0, 4)
-
   return (
     <div className="rm-dashboard">
       {/* Заголовок */}
@@ -181,28 +154,24 @@ function MapPage() {
         <h1>RoadMap</h1>
         <p>Моніторинг стану доріг · м. Львів</p>
       </div>
-
       {/* Блакитний банер */}
       <section className="rm-hero">
         <div className="rm-hero-copy">
           <h2>Єдина карта дорожніх подій</h2>
-
           <p>
             Повідомляйте про проблеми та стежте
             <br />
             за їх вирішенням у своєму місті.
           </p>
         </div>
-
         <Link
           className="rm-hero-button"
-          to="/login"
-          title="Для створення заявки спочатку потрібно увійти"
+          to="/report/new"
+          title="Відкрити форму створення заявки"
         >
           <span aria-hidden="true">＋</span>
           Повідомити про проблему
         </Link>
-
         {/* Декоративний силует міста */}
         <svg
           className="rm-skyline"
@@ -215,7 +184,6 @@ function MapPage() {
             stroke="#a3d9f5"
             strokeWidth="2"
           />
-
           <g fill="#a7daf4" opacity=".93">
             <rect x="15" y="68" width="25" height="36" rx="2" />
             <rect x="44" y="53" width="28" height="51" rx="2" />
@@ -230,7 +198,6 @@ function MapPage() {
             <rect x="339" y="69" width="22" height="35" rx="2" />
             <rect x="367" y="62" width="20" height="42" rx="2" />
           </g>
-
           <path
             d="M0 102c45-9 78-16 127-7s102-13 147-8 79-2 116-8"
             fill="none"
@@ -238,7 +205,6 @@ function MapPage() {
             strokeWidth="6"
             opacity=".8"
           />
-
           <g fill="#e7f6ff" opacity=".9">
             {Array.from({ length: 19 }, (_, i) => (
               <rect
@@ -253,7 +219,6 @@ function MapPage() {
           </g>
         </svg>
       </section>
-
       {/* Статистика */}
       <div
         className="rm-stats"
@@ -265,21 +230,18 @@ function MapPage() {
           symbol="▤"
           tone="total"
         />
-
         <StatCard
           value={newCount}
           label="Нові"
           symbol="♧"
           tone="new"
         />
-
         <StatCard
           value={progressCount}
           label="У роботі"
           symbol="◷"
           tone="progress"
         />
-
         <StatCard
           value={resolvedCount}
           label="Усунено"
@@ -287,7 +249,6 @@ function MapPage() {
           tone="resolved"
         />
       </div>
-
       {/* Карта та інформаційні блоки */}
       <div className="rm-content-grid">
         <section
@@ -296,16 +257,13 @@ function MapPage() {
         >
           <div className="rm-panel-heading">
             <h2>Карта стану доріг</h2>
-
             <span className="rm-light-tag">
               Демонстраційні події
             </span>
           </div>
-
           {/* Уже реалізована карта KAN-53 */}
           <RoadMapMap />
         </section>
-
         <div className="rm-side-panels">
           {/* Кругова діаграма */}
           <section
@@ -313,7 +271,6 @@ function MapPage() {
             aria-label="Стани звернень"
           >
             <h2>Стан звернень</h2>
-
             <div className="rm-status-body">
               <div
                 className="rm-donut"
@@ -324,26 +281,22 @@ function MapPage() {
                   <span>подій</span>
                 </div>
               </div>
-
               <div className="rm-status-legend">
                 <div>
                   <i className="rm-dot rm-dot--resolved" />
                   Усунено
                   <strong>{resolvedCount}</strong>
                 </div>
-
                 <div>
                   <i className="rm-dot rm-dot--progress" />
                   У роботі
                   <strong>{progressCount}</strong>
                 </div>
-
                 <div>
                   <i className="rm-dot rm-dot--new" />
                   Нові
                   <strong>{newCount}</strong>
                 </div>
-
                 <div>
                   <i className="rm-dot rm-dot--accepted" />
                   Прийняті
@@ -352,17 +305,14 @@ function MapPage() {
               </div>
             </div>
           </section>
-
           {/* Лінійний графік */}
           <section className="rm-panel rm-chart-panel">
             <div className="rm-panel-heading">
               <h2>Події за категоріями</h2>
-
               <span className="rm-small-tag">
                 Демо
               </span>
             </div>
-
             <svg
               className="rm-type-chart"
               viewBox="0 0 305 113"
@@ -375,7 +325,6 @@ function MapPage() {
                 stroke="#e2eff8"
                 strokeWidth="1"
               />
-
               <polyline
                 points={linePoints}
                 fill="none"
@@ -384,7 +333,6 @@ function MapPage() {
                 strokeLinejoin="round"
                 strokeLinecap="round"
               />
-
               {typeCounts.map((count, index) => (
                 <circle
                   key={index}
@@ -395,7 +343,6 @@ function MapPage() {
                 />
               ))}
             </svg>
-
             <div className="rm-chart-labels">
               {types.map((type) => (
                 <span key={type.code}>
@@ -406,7 +353,6 @@ function MapPage() {
           </section>
         </div>
       </div>
-
       {/* Останні події */}
       <section
         className="rm-panel rm-recent-panel"
@@ -418,21 +364,18 @@ function MapPage() {
               ? 'Результати пошуку'
               : 'Нещодавні події'}
           </h2>
-
           <span className="rm-muted-note">
             {searchQuery
               ? `Знайдено: ${matchedEvents.length}`
               : 'Демонстраційні дані'}
           </span>
         </div>
-
         {searchQuery && (
           <p className="rm-search-note">
             Пошук працює в списку подій.
             Для карти використай фільтри над нею.
           </p>
         )}
-
         <div className="rm-recent-list">
           {visibleEvents.map((event) => (
             <div
@@ -445,12 +388,10 @@ function MapPage() {
               >
                 ●
               </span>
-
               <div className="rm-event-info">
                 <strong>{event.title}</strong>
                 <span>{event.address}</span>
               </div>
-
               <span
                 className={`rm-event-status rm-event-status--${EVENT_STATUS[event.status].className}`}
               >
@@ -458,7 +399,6 @@ function MapPage() {
               </span>
             </div>
           ))}
-
           {visibleEvents.length === 0 && (
             <p className="rm-no-results">
               За цим запитом демонстраційних подій не знайдено.
@@ -469,48 +409,38 @@ function MapPage() {
     </div>
   )
 }
-
 // KAN-52 — сторінка входу
 function LoginPage() {
   const navigate = useNavigate()
-
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [message, setMessage] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-
   async function handleSubmit(
     event: SyntheticEvent<HTMLFormElement>
   ) {
     event.preventDefault()
     setMessage('')
-
     if (password.length < 8) {
       setMessage('Пароль має містити щонайменше 8 символів.')
       return
     }
-
     setIsLoading(true)
-
     try {
       const result = await loginUser(email.trim(), password)
-
       sessionStorage.setItem(
         TOKEN_KEY,
         result.access_token
       )
-
       const profile = await getCurrentUser(
         result.access_token
       )
-
       navigate(homeForRole(profile.role), {
         replace: true,
       })
     } catch (error) {
       sessionStorage.removeItem(TOKEN_KEY)
-
       setMessage(
         error instanceof Error
           ? error.message
@@ -520,26 +450,21 @@ function LoginPage() {
       setIsLoading(false)
     }
   }
-
   return (
     <div className="auth-page auth-page--figma auth-page--login">
       <header className="auth-topbar">
         <img src="/roadmap-icon.png" alt="" />
         <span>RoadMap</span>
       </header>
-
       <div className="auth-shell">
         <div
           className="auth-hero-brand"
           aria-hidden="true"
         />
-
         <h1>Вітаємо в RoadMap!</h1>
-
         <p className="auth-intro">
           Увійдіть, щоб керувати заявками
         </p>
-
         <section
           className="auth-card"
           aria-labelledby="login-title"
@@ -547,12 +472,10 @@ function LoginPage() {
           <h2 id="login-title">
             Вхід до системи
           </h2>
-
           <form onSubmit={handleSubmit}>
             <label htmlFor="login-email">
               Електронна пошта:
             </label>
-
             <input
               id="login-email"
               type="email"
@@ -565,11 +488,9 @@ function LoginPage() {
               disabled={isLoading}
               required
             />
-
             <label htmlFor="login-password">
               Пароль:
             </label>
-
             <input
               id="login-password"
               type={showPassword ? 'text' : 'password'}
@@ -582,7 +503,6 @@ function LoginPage() {
               disabled={isLoading}
               required
             />
-
             <div className="auth-login-actions">
               <button
                 type="button"
@@ -596,7 +516,6 @@ function LoginPage() {
                   : 'Показати пароль'}
               </button>
             </div>
-
             {message && (
               <p
                 className="auth-message"
@@ -605,7 +524,6 @@ function LoginPage() {
                 {message}
               </p>
             )}
-
             <button
               type="submit"
               className="auth-button"
@@ -617,14 +535,12 @@ function LoginPage() {
             </button>
           </form>
         </section>
-
         <div className="auth-login-footer">
           <p>Немає акаунта?</p>
           <Link to="/register">
             Зареєструватися
           </Link>
         </div>
-
         <p className="auth-login-note">
           <span aria-hidden="true">♢</span>
           <Link to="/">
@@ -635,7 +551,6 @@ function LoginPage() {
     </div>
   )
 }
-
 // KAN-52 — сторінка реєстрації
 function RegisterPage() {
   const [fullName, setFullName] = useState('')
@@ -644,21 +559,17 @@ function RegisterPage() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] =
     useState('')
-
   const [agreeTerms, setAgreeTerms] = useState(false)
   const [agreePrivacy, setAgreePrivacy] = useState(false)
-
   const [message, setMessage] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
-
   async function handleSubmit(
     event: SyntheticEvent<HTMLFormElement>
   ) {
     event.preventDefault()
     setMessage('')
     setIsSuccess(false)
-
     if (
       fullName.trim().length < 2 ||
       fullName.trim().length > 150
@@ -668,17 +579,15 @@ function RegisterPage() {
       )
       return
     }
-
     if (
       phone.trim() &&
-      !/^\+?[0-9]{10,15}$/.test(phone.trim())
+      !/^[+]?[0-9]{10,15}$/.test(phone.trim())
     ) {
       setMessage(
         'Введіть телефон у міжнародному форматі, наприклад +380XXXXXXXXX.'
       )
       return
     }
-
     if (
       password.length < 8 ||
       password.length > 128
@@ -688,7 +597,6 @@ function RegisterPage() {
       )
       return
     }
-
     if (
       !/\p{L}/u.test(password) ||
       !/\d/.test(password)
@@ -698,21 +606,17 @@ function RegisterPage() {
       )
       return
     }
-
     if (password !== confirmPassword) {
       setMessage('Паролі не збігаються.')
       return
     }
-
     if (!agreeTerms || !agreePrivacy) {
       setMessage(
         'Потрібно прийняти обидві обов’язкові згоди.'
       )
       return
     }
-
     setIsLoading(true)
-
     try {
       await registerUser({
         full_name: fullName.trim(),
@@ -723,13 +627,10 @@ function RegisterPage() {
           : {}),
         consents: ['terms', 'personal_data'],
       })
-
       setIsSuccess(true)
-
       setMessage(
         'Акаунт створено! Тепер можна увійти до системи.'
       )
-
       setFullName('')
       setEmail('')
       setPhone('')
@@ -747,27 +648,22 @@ function RegisterPage() {
       setIsLoading(false)
     }
   }
-
   return (
     <div className="auth-page auth-page--figma auth-page--register">
       <header className="auth-topbar">
         <img src="/roadmap-icon.png" alt="" />
         <span>RoadMap</span>
       </header>
-
       <div className="auth-shell">
         <div
           className="auth-hero-brand"
           aria-hidden="true"
         />
-
         <h1>Створити акаунт RoadMap</h1>
-
         <p className="auth-intro">
           Повідомляйте про проблеми на дорогах
           та відстежуйте заявки
         </p>
-
         <section
           className="auth-card"
           aria-labelledby="register-title"
@@ -775,12 +671,10 @@ function RegisterPage() {
           <h2 id="register-title">
             Реєстрація
           </h2>
-
           <form onSubmit={handleSubmit}>
             <label htmlFor="register-name">
               Ім'я та прізвище
             </label>
-
             <input
               id="register-name"
               type="text"
@@ -794,11 +688,9 @@ function RegisterPage() {
               required
               disabled={isLoading}
             />
-
             <label htmlFor="register-email">
               Електронна пошта
             </label>
-
             <input
               id="register-email"
               type="email"
@@ -811,11 +703,9 @@ function RegisterPage() {
               required
               disabled={isLoading}
             />
-
             <label htmlFor="register-phone">
               Телефон (необов'язково)
             </label>
-
             <input
               id="register-phone"
               type="tel"
@@ -827,11 +717,9 @@ function RegisterPage() {
               placeholder="+380XXXXXXXXX"
               disabled={isLoading}
             />
-
             <label htmlFor="register-password">
               Пароль
             </label>
-
             <input
               id="register-password"
               type="password"
@@ -846,11 +734,9 @@ function RegisterPage() {
               required
               disabled={isLoading}
             />
-
             <label htmlFor="register-confirm">
               Підтвердження пароля
             </label>
-
             <input
               id="register-confirm"
               type="password"
@@ -863,7 +749,6 @@ function RegisterPage() {
               required
               disabled={isLoading}
             />
-
             <label className="auth-checkbox">
               <input
                 type="checkbox"
@@ -874,12 +759,10 @@ function RegisterPage() {
                 required
                 disabled={isLoading}
               />
-
               <span>
                 Погоджуюся з умовами використання сервісу
               </span>
             </label>
-
             <label className="auth-checkbox">
               <input
                 type="checkbox"
@@ -890,12 +773,10 @@ function RegisterPage() {
                 required
                 disabled={isLoading}
               />
-
               <span>
                 Надаю згоду на обробку персональних даних
               </span>
             </label>
-
             {message && (
               <p
                 role="status"
@@ -908,7 +789,6 @@ function RegisterPage() {
                 {message}
               </p>
             )}
-
             <button
               type="submit"
               className="auth-button"
@@ -920,7 +800,6 @@ function RegisterPage() {
             </button>
           </form>
         </section>
-
         <div className="auth-login-footer">
           <p>Уже маєте акаунт?</p>
           <Link to="/login">
@@ -931,76 +810,60 @@ function RegisterPage() {
     </div>
   )
 }
-
 // Захист сторінок за ролями користувачів
 type ProtectedPageProps = {
   allowedRoles: string[]
   title: string
   children: ReactNode
 }
-
 function ProtectedPage({
   allowedRoles,
   title,
   children,
 }: ProtectedPageProps) {
   const navigate = useNavigate()
-
   const [user, setUser] = useState<UserProfile | null>(null)
   const [error, setError] = useState('')
-
   const allowed = allowedRoles.join(',')
-
   useEffect(() => {
     const token = sessionStorage.getItem(TOKEN_KEY)
-
     if (!token) {
       navigate('/login', { replace: true })
       return
     }
-
     let active = true
-
     getCurrentUser(token)
       .then((profile) => {
         if (!active) return
-
         if (!allowed.split(',').includes(profile.role)) {
           navigate(homeForRole(profile.role), {
             replace: true,
           })
           return
         }
-
         setUser(profile)
       })
       .catch((requestError: unknown) => {
         if (!active) return
-
         const msg =
           requestError instanceof Error
             ? requestError.message
             : 'Помилка перевірки входу.'
-
         setError(msg)
       })
-
     return () => {
       active = false
     }
   }, [allowed, navigate])
-
   function logout() {
     sessionStorage.removeItem(TOKEN_KEY)
     navigate('/login', { replace: true })
   }
-
   if (error) {
     return (
       <section className="roadmap-role-page">
         <h2>Не вдалося перевірити доступ</h2>
         <p role="alert">{error}</p>
-
         <button
           className="auth-button"
           type="button"
@@ -1011,24 +874,20 @@ function ProtectedPage({
       </section>
     )
   }
-
   if (!user) {
     return (
       <p>Перевіряємо вхід до RoadMap...</p>
     )
   }
-
   return (
     <section className="roadmap-role-page">
       <div className="roadmap-role-header">
         <div>
           <h2>{title}</h2>
-
           <p>
             Ви увійшли як {user.full_name} ({user.role}).
           </p>
         </div>
-
         <button
           type="button"
           className="roadmap-logout"
@@ -1037,16 +896,13 @@ function ProtectedPage({
           Вийти
         </button>
       </div>
-
       {children}
     </section>
   )
 }
-
 function Placeholder({ text }: { text: string }) {
   return <p>{text}</p>
 }
-
 const ALL_ROLES = [
   'driver',
   'operator',
@@ -1055,7 +911,6 @@ const ALL_ROLES = [
   'admin',
   'data_governance',
 ]
-
 // Маршрути застосунку
 function App() {
   return (
@@ -1066,22 +921,22 @@ function App() {
             path="/"
             element={<MapPage />}
           />
-
           <Route
             path="/overview"
             element={<MapPage />}
           />
-
           <Route
             path="/login"
             element={<LoginPage />}
           />
-
           <Route
             path="/register"
             element={<RegisterPage />}
           />
-
+          <Route
+            path="/report/new"
+            element={<ReportCreatePage />}
+          />
           <Route
             path="/notifications"
             element={
@@ -1095,7 +950,6 @@ function App() {
               </ProtectedPage>
             }
           />
-
           <Route
             path="/profile"
             element={
@@ -1109,7 +963,6 @@ function App() {
               </ProtectedPage>
             }
           />
-
           <Route
             path="/my-reports"
             element={
@@ -1123,7 +976,6 @@ function App() {
               </ProtectedPage>
             }
           />
-
           <Route
             path="/service"
             element={
@@ -1137,7 +989,6 @@ function App() {
               </ProtectedPage>
             }
           />
-
           <Route
             path="/contractor"
             element={
@@ -1151,7 +1002,6 @@ function App() {
               </ProtectedPage>
             }
           />
-
           <Route
             path="/admin"
             element={
@@ -1165,7 +1015,6 @@ function App() {
               </ProtectedPage>
             }
           />
-
           <Route
             path="/governance"
             element={
@@ -1179,7 +1028,6 @@ function App() {
               </ProtectedPage>
             }
           />
-
           <Route
             path="*"
             element={<h2>Сторінку не знайдено</h2>}
@@ -1189,5 +1037,4 @@ function App() {
     </BrowserRouter>
   )
 }
-
 export default App

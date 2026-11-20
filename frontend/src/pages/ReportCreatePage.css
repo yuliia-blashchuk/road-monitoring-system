@@ -1,0 +1,559 @@
+
+/* =========================================
+   RoadMap — форма створення заявки KAN-69
+   ========================================= */
+
+.rm-report-page {
+  width: 100%;
+  max-width: 1050px;
+  margin: 0 auto;
+  padding-bottom: 32px;
+  color: #173b60;
+}
+
+.rm-report-page,
+.rm-report-page * {
+  box-sizing: border-box;
+}
+
+/* Заголовок сторінки */
+
+.rm-report-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.rm-report-back {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 18px;
+  color: #348fc9;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.rm-report-back:hover {
+  color: #176b9f;
+  text-decoration: underline;
+}
+
+.rm-report-heading h1 {
+  margin: 0 0 10px;
+  color: #15395f;
+  font-size: 29px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+.rm-report-heading p {
+  max-width: 580px;
+  margin: 0;
+  color: #7796b0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.rm-report-demo-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 9px 14px;
+  border: 1px solid #cce8fa;
+  border-radius: 30px;
+  background: #e3f4ff;
+  color: #388cc0;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Загальна структура форми */
+
+.rm-report-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.rm-report-card {
+  padding: 27px 30px;
+  border: 1px solid #dfedf8;
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 5px 20px rgba(38, 106, 157, 0.04);
+}
+
+.rm-report-section-title {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  margin-bottom: 23px;
+}
+
+.rm-report-step {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #79c7ed, #3399d3);
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.rm-report-section-title h2 {
+  margin: 2px 0 6px;
+  color: #183c60;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.rm-report-section-title p {
+  margin: 0;
+  color: #819db5;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* Карта для вибору місця */
+
+.rm-report-map {
+  overflow: hidden;
+  border: 1px solid #d6e8f6;
+  border-radius: 15px;
+  background: #e9f5fd;
+}
+
+.rm-report-map .leaflet-container {
+  width: 100%;
+  height: 350px;
+  z-index: 1;
+  font-family: inherit;
+}
+
+.rm-report-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 3px solid #ffffff;
+  border-radius: 50%;
+  background: #349bd4;
+  box-shadow: 0 4px 15px rgba(28, 103, 159, 0.25);
+  font-size: 22px;
+}
+
+.rm-report-location-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 17px;
+}
+
+.rm-report-coordinates {
+  color: #309a7b;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Поля введення */
+
+.rm-report-label {
+  display: block;
+  margin: 17px 0 8px;
+  color: #305575;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.rm-report-control {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 15px;
+  border: 1px solid #d5e7f4;
+  border-radius: 11px;
+  outline: none;
+  background: #f7fbff;
+  color: #173b60;
+  font-family: inherit;
+  font-size: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.rm-report-control:focus {
+  border-color: #62b7e7;
+  box-shadow: 0 0 0 3px rgba(98, 183, 231, 0.15);
+}
+
+.rm-report-control::placeholder {
+  color: #a0b7ca;
+}
+
+.rm-report-textarea {
+  min-height: 125px;
+  resize: vertical;
+  line-height: 1.6;
+}
+
+.rm-report-counter {
+  margin-top: 7px;
+  color: #93a9bd;
+  font-size: 12px;
+  text-align: right;
+}
+
+/* Завантаження фотографій */
+
+.rm-report-upload {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 9px;
+  min-height: 155px;
+  padding: 24px;
+  border: 2px dashed #b9ddf3;
+  border-radius: 15px;
+  background: #f3faff;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.rm-report-upload:hover {
+  border-color: #72bce9;
+  background: #eaf7ff;
+}
+
+.rm-report-upload-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 43px;
+  height: 43px;
+  border-radius: 50%;
+  background: #d8f0ff;
+  color: #358fc7;
+  font-size: 30px;
+  font-weight: 400;
+}
+
+.rm-report-upload strong {
+  color: #317eac;
+  font-size: 14px;
+}
+
+.rm-report-upload > span:last-child {
+  color: #91abc0;
+  font-size: 12px;
+}
+
+.rm-report-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.rm-report-upload:has(+ .rm-report-file-input:focus-visible) {
+  outline: 3px solid #93c5fd;
+  outline-offset: 3px;
+}
+
+.rm-report-upload:has(+ .rm-report-file-input:disabled) {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.rm-report-previews {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 17px;
+}
+
+.rm-report-preview {
+  position: relative;
+  width: 110px;
+  height: 110px;
+  overflow: hidden;
+  border: 1px solid #dcebf7;
+  border-radius: 13px;
+  background: #f3f9fd;
+}
+
+.rm-report-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.rm-report-preview button {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(25, 47, 70, 0.82);
+  color: #ffffff;
+  font-size: 19px;
+  cursor: pointer;
+}
+
+/* Можливі дублікати */
+
+.rm-report-empty {
+  padding: 17px;
+  border: 1px solid #deecf6;
+  border-radius: 12px;
+  background: #f5faff;
+  color: #7593ac;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.rm-report-duplicates {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rm-report-duplicate-warning {
+  margin: 0 0 5px;
+  padding: 12px 14px;
+  border: 1px solid #f4dfb9;
+  border-radius: 10px;
+  background: #fff9ed;
+  color: #a07835;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.rm-report-duplicate {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 14px 16px;
+  border: 1px solid #dfedf8;
+  border-radius: 12px;
+  background: #f8fcff;
+}
+
+.rm-report-duplicate strong {
+  color: #28577b;
+  font-size: 13px;
+}
+
+.rm-report-duplicate p {
+  margin: 5px 0 0;
+  color: #829eb5;
+  font-size: 12px;
+}
+
+.rm-report-duplicate > span {
+  flex-shrink: 0;
+  color: #468fbd;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.rm-report-hint {
+  margin: 14px 0 0;
+  color: #8aa4b9;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* Згода на передачу даних */
+
+.rm-report-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  color: #567792;
+  font-size: 13px;
+  line-height: 1.6;
+  cursor: pointer;
+}
+
+.rm-report-consent input {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  accent-color: #329bd5;
+}
+
+/* Повідомлення */
+
+.rm-report-error {
+  margin: 15px 0 0;
+  padding: 13px 16px;
+  border: 1px solid #f3c8c8;
+  border-radius: 11px;
+  background: #fff2f2;
+  color: #bb4545;
+  font-size: 13px;
+}
+
+.rm-report-success {
+  margin-top: 17px;
+  padding: 16px;
+  border: 1px solid #bce8d8;
+  border-radius: 12px;
+  background: #effbf6;
+  color: #267d60;
+}
+
+.rm-report-success strong {
+  display: block;
+  margin-bottom: 7px;
+  font-size: 14px;
+}
+
+.rm-report-success p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* Кнопки */
+
+.rm-report-submit-row {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 13px;
+  margin-top: 23px;
+}
+
+.rm-report-secondary-button,
+.rm-report-submit-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  padding: 12px 23px;
+  border-radius: 11px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: filter 0.2s, transform 0.2s;
+}
+
+.rm-report-secondary-button {
+  border: 1px solid #cfe4f3;
+  background: #edf8ff;
+  color: #3289bf;
+}
+
+.rm-report-submit-button {
+  border: 0;
+  background: linear-gradient(100deg, #63b9e8, #2589c4);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(42, 137, 195, 0.17);
+}
+
+.rm-report-secondary-button:hover,
+.rm-report-submit-button:hover {
+  filter: brightness(1.05);
+}
+
+.rm-report-secondary-button:active,
+.rm-report-submit-button:active {
+  transform: scale(0.98);
+}
+
+.rm-report-secondary-button:focus-visible,
+.rm-report-submit-button:focus-visible {
+  outline: 3px solid #93c5fd;
+  outline-offset: 3px;
+}
+
+/* Мобільна версія */
+
+@media (max-width: 768px) {
+  .rm-report-heading h1 {
+    font-size: 25px;
+  }
+
+  .rm-report-card {
+    padding: 22px 18px;
+  }
+
+  .rm-report-section-title h2 {
+    font-size: 16px;
+  }
+
+  .rm-report-map .leaflet-container {
+    height: 300px;
+  }
+}
+
+@media (max-width: 480px) {
+  .rm-report-heading h1 {
+    font-size: 23px;
+  }
+
+  .rm-report-card {
+    padding: 19px 15px;
+    border-radius: 15px;
+  }
+
+  .rm-report-section-title {
+    gap: 10px;
+  }
+
+  .rm-report-step {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+  }
+
+  .rm-report-map .leaflet-container {
+    height: 260px;
+  }
+
+  .rm-report-submit-row {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .rm-report-secondary-button,
+  .rm-report-submit-button {
+    width: 100%;
+  }
+
+  .rm-report-duplicate {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .rm-report-duplicate > span {
+    align-self: flex-start;
+  }
+
+  .rm-report-preview {
+    width: 92px;
+    height: 92px;
+  }
+}
