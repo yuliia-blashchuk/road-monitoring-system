@@ -1,4 +1,3 @@
-
 export type RoadEventType =
   | 'pothole'
   | 'accident'
@@ -20,13 +19,17 @@ export interface RoadEvent {
   status: RoadEventStatus
   lat: number
   lng: number
+  createdAt: string
 }
 
 // Вигадані демонстраційні дорожні події.
 // Координати приблизні. Дані не відображають
 // реальний стан доріг Львова.
+//
+// Дати створення додаються автоматично
+// в кінці файлу.
 
-export const mapEvents: RoadEvent[] = [
+const rawMapEvents: Omit<RoadEvent, 'createdAt'>[] = [
   // Центральна частина Львова
   {
     id: 1,
@@ -489,3 +492,24 @@ export const mapEvents: RoadEvent[] = [
     lng: 24.0775,
   },
 ]
+
+// Додаємо демонстраційні дати до всіх 50 подій.
+// За основу взято 20 листопада 2026 року.
+// Дати розподілено протягом попередніх 90 днів.
+
+const DEMO_DATE = Date.UTC(2026, 10, 20, 12)
+
+const DAY_IN_MS = 24 * 60 * 60 * 1000
+
+export const mapEvents: RoadEvent[] = rawMapEvents.map(
+  (event) => {
+    const daysAgo = (event.id * 7) % 90
+
+    return {
+      ...event,
+      createdAt: new Date(
+        DEMO_DATE - daysAgo * DAY_IN_MS
+      ).toISOString(),
+    }
+  }
+)
