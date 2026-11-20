@@ -15,6 +15,7 @@ import {
 } from 'react-router'
 import RoadMapMap from './components/RoadMapMap'
 import ReportCreatePage from './pages/ReportCreatePage'
+import ReportDetailsPage from './pages/ReportDetailsPage'
 import { mapEvents, type RoadEventStatus } from './data/mapEvents'
 import AppLayout from './components/AppLayout'
 import {
@@ -388,10 +389,15 @@ function MapPage() {
               >
                 ●
               </span>
-              <div className="rm-event-info">
+              <Link
+                to={`/reports/${event.id}`}
+                className="rm-event-info"
+                style={{ color: 'inherit', textDecoration: 'none' }}
+                title="Переглянути картку заявки"
+              >
                 <strong>{event.title}</strong>
                 <span>{event.address}</span>
-              </div>
+              </Link>
               <span
                 className={`rm-event-status rm-event-status--${EVENT_STATUS[event.status].className}`}
               >
@@ -936,6 +942,10 @@ function App() {
           <Route
             path="/report/new"
             element={<ReportCreatePage />}
+          />
+          <Route
+            path="/reports/:id"
+            element={<ReportDetailsPage />}
           />
           <Route
             path="/notifications"
