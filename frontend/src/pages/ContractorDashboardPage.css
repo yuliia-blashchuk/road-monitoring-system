@@ -1,0 +1,712 @@
+
+/* ==========================================
+   RoadMap — Кабінет підрядника (KAN-72)
+   ========================================== */
+
+.rm-contractor-page {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding-bottom: 40px;
+  color: #173b60;
+}
+
+.rm-contractor-page,
+.rm-contractor-page * {
+  box-sizing: border-box;
+}
+
+/* Заголовок сторінки */
+
+.rm-contractor-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.rm-contractor-eyebrow {
+  margin: 0 0 10px;
+  color: #7199b7;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.rm-contractor-heading h1 {
+  margin: 0 0 9px;
+  color: #123b62;
+  font-size: 29px;
+  font-weight: 800;
+  letter-spacing: -0.4px;
+}
+
+.rm-contractor-heading > div > p:last-child {
+  margin: 0;
+  color: #7798b2;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.rm-contractor-demo {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 8px 15px;
+  border: 1px solid #cbe5f8;
+  border-radius: 30px;
+  background: #e6f5ff;
+  color: #2787c0;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Інформаційний банер */
+
+.rm-contractor-notice {
+  margin-bottom: 22px;
+  padding: 14px 18px;
+  border: 1px solid #cce7f8;
+  border-radius: 12px;
+  background: #e9f7ff;
+  color: #4e88af;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* Статистика */
+
+.rm-contractor-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.rm-contractor-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 22px;
+  border: 1px solid #dcecf8;
+  border-radius: 17px;
+  background: #ffffff;
+  box-shadow: 0 5px 16px rgba(35, 104, 151, 0.04);
+}
+
+.rm-contractor-stat span {
+  color: #668eab;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.rm-contractor-stat strong {
+  color: #237fb9;
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.rm-contractor-stat small {
+  color: #91aabd;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* Основні картки */
+
+.rm-contractor-card {
+  min-width: 0;
+  margin-bottom: 22px;
+  padding: 25px 27px;
+  border: 1px solid #dcebf7;
+  border-radius: 19px;
+  background: #ffffff;
+  box-shadow: 0 5px 20px rgba(38, 106, 157, 0.04);
+}
+
+.rm-contractor-card h2 {
+  margin: 0;
+  color: #173b60;
+  font-size: 19px;
+  font-weight: 800;
+}
+
+.rm-contractor-card h3 {
+  margin: 0 0 16px;
+  color: #173b60;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.rm-contractor-section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.rm-contractor-section-heading p {
+  margin: 7px 0 0;
+  color: #88a4ba;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.rm-contractor-count {
+  display: inline-flex;
+  padding: 8px 13px;
+  border-radius: 20px;
+  background: #eaf6ff;
+  color: #308cc4;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Пошук і фільтри */
+
+.rm-contractor-filters {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 21px;
+}
+
+.rm-contractor-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 170px;
+  color: #6788a5;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.rm-contractor-filters label:first-child {
+  flex: 1;
+  max-width: 340px;
+}
+
+.rm-contractor-filters input,
+.rm-contractor-filters select {
+  width: 100%;
+  min-height: 43px;
+  padding: 10px 12px;
+  border: 1px solid #cadff0;
+  border-radius: 10px;
+  outline: none;
+  background: #f5faff;
+  color: #214c71;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.rm-contractor-filters input::placeholder {
+  color: #9bb7ca;
+}
+
+.rm-contractor-filters select {
+  cursor: pointer;
+}
+
+.rm-contractor-filters input:focus,
+.rm-contractor-filters select:focus {
+  border-color: #64b6e5;
+  box-shadow: 0 0 0 3px rgba(80, 169, 223, 0.12);
+}
+
+/* Кнопки */
+
+.rm-contractor-primary,
+.rm-contractor-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 43px;
+  padding: 11px 18px;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    box-shadow 0.2s,
+    transform 0.2s;
+}
+
+.rm-contractor-primary {
+  border: 0;
+  background: linear-gradient(100deg, #64bee9, #268bc6);
+  color: #ffffff;
+  box-shadow: 0 5px 12px rgba(45, 143, 199, 0.12);
+}
+
+.rm-contractor-primary:hover {
+  box-shadow: 0 7px 15px rgba(45, 143, 199, 0.2);
+  transform: translateY(-1px);
+}
+
+.rm-contractor-secondary {
+  border: 1px solid #c9e4f6;
+  background: #edf7ff;
+  color: #2788bf;
+}
+
+.rm-contractor-secondary:hover {
+  background: #dcefff;
+}
+
+.rm-contractor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 11px;
+  margin-top: 20px;
+}
+
+/* Таблиця призначених робіт */
+
+.rm-contractor-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid #e0edf6;
+  border-radius: 12px;
+}
+
+.rm-contractor-table {
+  width: 100%;
+  min-width: 800px;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.rm-contractor-table thead {
+  background: #f1f8fd;
+}
+
+.rm-contractor-table th {
+  padding: 15px 13px;
+  color: #7093ad;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.rm-contractor-table td {
+  padding: 15px 13px;
+  border-top: 1px solid #eaf1f7;
+  color: #476c89;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.rm-contractor-table tbody tr {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.rm-contractor-table tbody tr:hover {
+  background: #f4faff;
+}
+
+.rm-contractor-table tbody tr.selected {
+  background: #eaf6ff;
+}
+
+.rm-contractor-row-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #287eb7;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.rm-contractor-row-link:hover {
+  text-decoration: underline;
+}
+
+.rm-contractor-empty {
+  padding: 26px 15px;
+  color: #829db2;
+  font-size: 13px;
+  text-align: center;
+}
+
+/* Статуси */
+
+.rm-contractor-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.rm-contractor-status--assigned {
+  background: #fff5e5;
+  color: #c48a31;
+}
+
+.rm-contractor-status--in_progress {
+  background: #e9f5ff;
+  color: #2688c4;
+}
+
+.rm-contractor-status--done {
+  background: #e9f8ef;
+  color: #329c6f;
+}
+
+/* Прогрес у таблиці */
+
+.rm-contractor-progress-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 120px;
+}
+
+.rm-contractor-progress-track {
+  flex: 1;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 20px;
+  background: #e8f1f8;
+}
+
+.rm-contractor-progress-track > div {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #63c0eb, #298fc9);
+  transition: width 0.25s ease;
+}
+
+.rm-contractor-progress-cell strong {
+  min-width: 32px;
+  color: #2988bd;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: right;
+}
+
+/* Картка вибраної роботи */
+
+.rm-contractor-details {
+  margin-top: 0;
+}
+
+.rm-contractor-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 13px;
+}
+
+.rm-contractor-detail-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid #e0edf6;
+  border-radius: 11px;
+  background: #f6fbff;
+}
+
+.rm-contractor-detail-grid span {
+  color: #88a4ba;
+  font-size: 12px;
+}
+
+.rm-contractor-detail-grid strong {
+  color: #24567b;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.rm-contractor-date-note {
+  margin: 14px 0 0;
+  color: #7595ad;
+  font-size: 12px;
+}
+
+.rm-contractor-divider {
+  height: 1px;
+  margin: 25px 0;
+  background: #e5f0f7;
+}
+
+/* Великий індикатор виконання */
+
+.rm-contractor-progress-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 11px;
+}
+
+.rm-contractor-progress-heading span {
+  color: #648eaa;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.rm-contractor-progress-heading strong {
+  color: #2189c6;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.rm-contractor-progress-large {
+  width: 100%;
+  height: 15px;
+  overflow: hidden;
+  border-radius: 20px;
+  background: #e8f2f9;
+}
+
+.rm-contractor-progress-large > div {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #75c9ed, #278fc9);
+  transition: width 0.25s ease;
+}
+
+/* Повзунок прогресу */
+
+.rm-contractor-slider-label {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-top: 24px;
+  color: #537d9b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.rm-contractor-slider-label input[type="range"] {
+  width: 100%;
+  height: 7px;
+  accent-color: #2997cf;
+  cursor: pointer;
+}
+
+/* Фото після ремонту */
+
+.rm-contractor-photo-section {
+  margin-top: 26px;
+}
+
+.rm-contractor-photo-section h3 {
+  margin-bottom: 8px;
+}
+
+.rm-contractor-photo-section > p {
+  margin: 0 0 17px;
+  color: #82a0b7;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.rm-contractor-upload {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 125px;
+  padding: 20px;
+  overflow: hidden;
+  border: 2px dashed #addafa;
+  border-radius: 14px;
+  background: #f0f9ff;
+  color: #2589c4;
+  font-size: 14px;
+  font-weight: 800;
+  text-align: center;
+  cursor: pointer;
+  transition:
+    border-color 0.2s,
+    background 0.2s;
+}
+
+.rm-contractor-upload:hover,
+.rm-contractor-upload:focus-within {
+  border-color: #65b9e8;
+  background: #e4f4ff;
+}
+
+.rm-contractor-upload input[type="file"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+}
+
+.rm-contractor-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 13px;
+  margin-top: 20px;
+}
+
+.rm-contractor-photo {
+  position: relative;
+  height: 145px;
+  overflow: hidden;
+  border: 1px solid #d8e8f4;
+  border-radius: 12px;
+  background: #f2f8fc;
+}
+
+.rm-contractor-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.rm-contractor-photo button {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(21, 55, 83, 0.85);
+  color: #ffffff;
+  font-size: 19px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.rm-contractor-photo button:hover {
+  background: #d95656;
+}
+
+/* Повідомлення */
+
+.rm-contractor-error,
+.rm-contractor-success {
+  margin: 18px 0 0;
+  padding: 13px 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.rm-contractor-error {
+  border: 1px solid #f3c5c2;
+  background: #fff0ef;
+  color: #cf5550;
+}
+
+.rm-contractor-success {
+  border: 1px solid #bce8d4;
+  background: #effbf5;
+  color: #288f65;
+}
+
+.rm-contractor-finished {
+  margin-top: 19px;
+  padding: 19px;
+  border: 1px solid #bce7d3;
+  border-radius: 12px;
+  background: #effbf5;
+}
+
+.rm-contractor-finished strong {
+  color: #258f64;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.rm-contractor-finished p {
+  margin: 8px 0 0;
+  color: #50866d;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+/* Доступність */
+
+.rm-contractor-page button:focus-visible,
+.rm-contractor-page input:focus-visible,
+.rm-contractor-page select:focus-visible {
+  outline: 3px solid #8ac9ed;
+  outline-offset: 2px;
+}
+
+/* Адаптивність */
+
+@media (max-width: 1150px) {
+  .rm-contractor-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .rm-contractor-heading h1 {
+    font-size: 24px;
+  }
+
+  .rm-contractor-card {
+    padding: 20px 16px;
+  }
+
+  .rm-contractor-stats {
+    gap: 11px;
+  }
+
+  .rm-contractor-stat {
+    padding: 16px;
+  }
+
+  .rm-contractor-stat strong {
+    font-size: 27px;
+  }
+
+  .rm-contractor-filters label {
+    flex: 1 1 180px;
+    max-width: none;
+  }
+
+  .rm-contractor-filters label:first-child {
+    max-width: none;
+  }
+
+  .rm-contractor-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .rm-contractor-photo-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 420px) {
+  .rm-contractor-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .rm-contractor-actions > button {
+    width: 100%;
+  }
+}
