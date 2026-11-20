@@ -16,6 +16,7 @@ import {
 import RoadMapMap from './components/RoadMapMap'
 import ReportCreatePage from './pages/ReportCreatePage'
 import ReportDetailsPage from './pages/ReportDetailsPage'
+import ServiceDashboardPage from './pages/ServiceDashboardPage'
 import { mapEvents, type RoadEventStatus } from './data/mapEvents'
 import AppLayout from './components/AppLayout'
 import {
@@ -993,11 +994,19 @@ function App() {
                 allowedRoles={['operator', 'dispatcher']}
                 title="Кабінет дорожньої служби"
               >
-                <Placeholder
-                  text="Черга заявок дорожньої служби буде реалізована в окремому завданні."
-                />
+                <ServiceDashboardPage />
               </ProtectedPage>
             }
+          />
+
+  {/* Демонстраційний кабінет лише для розробки */}
+    <Route
+       path="/service/demo"
+        element={
+         import.meta.env.DEV
+           ? <ServiceDashboardPage />
+           : <h2>Демонстраційний кабінет недоступний</h2>
+           }
           />
           <Route
             path="/contractor"
