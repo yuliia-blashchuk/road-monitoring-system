@@ -1,5 +1,5 @@
 
-import { useState } from 'react'
+import { useState, type CSSProperties } from 'react'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import MarkerClusterGroup from 'react-leaflet-cluster'
 import L from 'leaflet'
@@ -70,6 +70,39 @@ const statuses: Record<
   },
 }
 
+// Періоди фільтрації
+type DateFilter = 'all' | '7' | '30' | '90' | 'custom'
+
+// Стиль фільтрів у кольорах RoadMap
+const filterStyle: CSSProperties = {
+  padding: '10px 12px',
+  borderRadius: '10px',
+  border: '1px solid #cbdfee',
+  backgroundColor: '#f4faff',
+  color: '#17365d',
+  fontSize: '13px',
+  cursor: 'pointer',
+  minHeight: '40px',
+  maxWidth: '100%',
+}
+
+const labelStyle: CSSProperties = {
+  display: 'block',
+  fontSize: '11px',
+  fontWeight: 600,
+  color: '#6686a2',
+  marginBottom: '5px',
+}
+
+// Перетворення дати на формат YYYY-MM-DD
+function toDateString(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
+}
+
 // Створення кольорової позначки на карті
 function createEventIcon(event: RoadEvent) {
   const style = eventStyles[event.type]
@@ -107,101 +140,321 @@ function RoadMapMap() {
   const [selectedType, setSelectedType] =
     useState<RoadEventType | 'all'>('all')
 
-  // Фільтр за статусом заявки
+  // Фільтр за статусом
   const [selectedStatus, setSelectedStatus] =
     useState<RoadEventStatus | 'all'>('all')
 
-  // Застосування обох фільтрів
+  // Фільтр за періодом
+  const [selectedPeriod, setSelectedPeriod] =
+    useState<DateFilter>('all')
+
+  // Власний період
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+
+  // Поточна дата
+  const today = toDateString(new Date())
+
+  // Початок вибраного періоду
+  let periodStart = ''
+
+  if (
+    selectedPeriod === '7' ||
+    selectedPeriod === '30' ||
+    selectedPeriod === '90'
+  ) {
+    const startDate = new Date()
+
+    startDate.setDate(
+      startDate.getDate() - Number(selectedPeriod) + 1
+    )
+
+    periodStart = toDateString(startDate)
+  }
+
+  // Перевірка власного діапазону
+  const invalidDateRange =
+    selectedPeriod === 'custom' &&
+    dateFrom !== '' &&
+    dateTo !== '' &&
+    dateFrom > dateTo
+
+  // Одночасна фільтрація за типом, статусом і датою
   const filteredEvents = mapEvents.filter((event) => {
     const matchesType =
-      selectedType === 'all' || event.type === selectedType
+      selectedType === 'all' ||
+      event.type === selectedType
 
     const matchesStatus =
-      selectedStatus === 'all' || event.status === selectedStatus
+      selectedStatus === 'all' ||
+      event.status === selectedStatus
 
-    return matchesType && matchesStatus
+    const eventDate = event.createdAt.slice(0, 10)
+
+    let matchesDate = true
+
+    // Готові періоди: 7, 30 або 90 днів
+    if (
+      selectedPeriod === '7' ||
+      selectedPeriod === '30' ||
+      selectedPeriod === '90'
+    ) {
+      matchesDate =
+        eventDate >= periodStart &&
+        eventDate <= today
+    }
+
+    // Власний діапазон дат
+    if (selectedPeriod === 'custom') {
+      matchesDate =
+        !invalidDateRange &&
+        (dateFrom === '' || eventDate >= dateFrom) &&
+        (dateTo === '' || eventDate <= dateTo)
+    }
+
+    return matchesType && matchesStatus && matchesDate
   })
+
+  // Чи вибрано хоча б один фільтр
+  const hasActiveFilters =
+    selectedType !== 'all' ||
+    selectedStatus !== 'all' ||
+    selectedPeriod !== 'all' ||
+    dateFrom !== '' ||
+    dateTo !== ''
+
+  // Скидання всіх фільтрів
+  function resetFilters() {
+    setSelectedType('all')
+    setSelectedStatus('all')
+    setSelectedPeriod('all')
+    setDateFrom('')
+    setDateTo('')
+  }
 
   return (
     <div>
-      {/* Панель фільтрації дорожніх подій */}
+      {/* Панель фільтрів */}
       <div
         style={{
           display: 'flex',
           flexWrap: 'wrap',
           gap: '12px',
-          marginBottom: '16px',
-          alignItems: 'center',
+          marginBottom: '14px',
+          alignItems: 'flex-end',
         }}
       >
-        {/* Фільтр за категорією */}
-        <select
-          value={selectedType}
-          onChange={(e) =>
-            setSelectedType(
-              e.target.value as RoadEventType | 'all'
-            )
-          }
-          aria-label="Фільтр за типом події"
-          style={{
-            padding: '10px 14px',
-            borderRadius: '10px',
-            border: '1px solid #cbd5e1',
-            backgroundColor: '#f4faff',
-            color: '#17365d',
-            fontSize: '14px',
-            cursor: 'pointer',
-          }}
-        >
-          <option value="all">Усі категорії</option>
-          <option value="pothole">
-            Пошкодження дороги
-          </option>
-          <option value="accident">Аварії</option>
-          <option value="obstacle">Перешкоди</option>
-          <option value="roadworks">
-            Ремонтні роботи
-          </option>
-          <option value="traffic_light">
-            Світлофори
-          </option>
-        </select>
+        {/* Фільтр за типом */}
+        <div>
+          <label
+            htmlFor="map-filter-type"
+            style={labelStyle}
+          >
+            Тип проблеми
+          </label>
+
+          <select
+            id="map-filter-type"
+            value={selectedType}
+            onChange={(event) =>
+              setSelectedType(
+                event.target.value as RoadEventType | 'all'
+              )
+            }
+            style={filterStyle}
+          >
+            <option value="all">Усі категорії</option>
+            <option value="pothole">
+              Пошкодження дороги
+            </option>
+            <option value="accident">
+              Аварії
+            </option>
+            <option value="obstacle">
+              Перешкоди
+            </option>
+            <option value="roadworks">
+              Ремонтні роботи
+            </option>
+            <option value="traffic_light">
+              Світлофори
+            </option>
+          </select>
+        </div>
 
         {/* Фільтр за статусом */}
-        <select
-          value={selectedStatus}
-          onChange={(e) =>
-            setSelectedStatus(
-              e.target.value as RoadEventStatus | 'all'
-            )
-          }
-          aria-label="Фільтр за статусом"
+        <div>
+          <label
+            htmlFor="map-filter-status"
+            style={labelStyle}
+          >
+            Статус
+          </label>
+
+          <select
+            id="map-filter-status"
+            value={selectedStatus}
+            onChange={(event) =>
+              setSelectedStatus(
+                event.target.value as RoadEventStatus | 'all'
+              )
+            }
+            style={filterStyle}
+          >
+            <option value="all">Усі статуси</option>
+            <option value="new">Нові</option>
+            <option value="accepted">Прийняті</option>
+            <option value="in_progress">В роботі</option>
+            <option value="resolved">Усунені</option>
+          </select>
+        </div>
+
+        {/* Фільтр за періодом */}
+        <div>
+          <label
+            htmlFor="map-filter-period"
+            style={labelStyle}
+          >
+            Період
+          </label>
+
+          <select
+            id="map-filter-period"
+            value={selectedPeriod}
+            onChange={(event) =>
+              setSelectedPeriod(
+                event.target.value as DateFilter
+              )
+            }
+            style={filterStyle}
+          >
+            <option value="all">
+              За весь час
+            </option>
+            <option value="7">
+              Останні 7 днів
+            </option>
+            <option value="30">
+              Останні 30 днів
+            </option>
+            <option value="90">
+              Останні 90 днів
+            </option>
+            <option value="custom">
+              Власний період
+            </option>
+          </select>
+        </div>
+
+        {/* Скидання фільтрів */}
+        {hasActiveFilters && (
+          <button
+            type="button"
+            onClick={resetFilters}
+            style={{
+              ...filterStyle,
+              backgroundColor: '#e4f3ff',
+              color: '#257eb6',
+              border: '1px solid #c6e4f9',
+              fontWeight: 600,
+            }}
+          >
+            ↻ Скинути
+          </button>
+        )}
+      </div>
+
+      {/* Вибір власного періоду */}
+      {selectedPeriod === 'custom' && (
+        <div
           style={{
-            padding: '10px 14px',
-            borderRadius: '10px',
-            border: '1px solid #cbd5e1',
-            backgroundColor: '#f4faff',
-            color: '#17365d',
-            fontSize: '14px',
-            cursor: 'pointer',
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '12px',
+            marginBottom: '14px',
+            alignItems: 'flex-end',
           }}
         >
-          <option value="all">Усі статуси</option>
-          <option value="new">Нові</option>
-          <option value="accepted">Прийняті</option>
-          <option value="in_progress">В роботі</option>
-          <option value="resolved">Усунені</option>
-        </select>
+          <div>
+            <label
+              htmlFor="map-date-from"
+              style={labelStyle}
+            >
+              Дата від
+            </label>
 
-        {/* Кількість знайдених подій */}
+            <input
+              id="map-date-from"
+              type="date"
+              value={dateFrom}
+              onChange={(event) =>
+                setDateFrom(event.target.value)
+              }
+              style={filterStyle}
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="map-date-to"
+              style={labelStyle}
+            >
+              Дата до
+            </label>
+
+            <input
+              id="map-date-to"
+              type="date"
+              value={dateTo}
+              onChange={(event) =>
+                setDateTo(event.target.value)
+              }
+              style={filterStyle}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Помилка діапазону */}
+      {invalidDateRange && (
+        <p
+          role="alert"
+          style={{
+            color: '#d9534f',
+            fontSize: '12px',
+            marginBottom: '12px',
+          }}
+        >
+          Дата початку не може бути пізнішою
+          за дату завершення.
+        </p>
+      )}
+
+      {/* Кількість знайдених подій */}
+      <div
+        aria-live="polite"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '6px',
+          marginBottom: '12px',
+          color: '#597c98',
+          fontSize: '12px',
+        }}
+      >
         <span
           style={{
-            color: '#64748b',
-            fontSize: '13px',
+            width: '8px',
+            height: '8px',
+            borderRadius: '50%',
+            backgroundColor: '#37a576',
           }}
-        >
-          Знайдено подій: {filteredEvents.length}
-        </span>
+        />
+
+        Знайдено подій:
+        <strong>{filteredEvents.length}</strong>
+        <span>із {mapEvents.length}</span>
       </div>
 
       {/* Інтерактивна карта Львова */}
@@ -215,14 +468,14 @@ function RoadMapMap() {
           borderRadius: '12px',
         }}
       >
-        {/* Карта OpenStreetMap */}
         <TileLayer
           attribution="&copy; OpenStreetMap contributors"
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        {/* Кластеризація маркерів */}
+        {/* Маркери та кластеризація */}
         <MarkerClusterGroup
+          key={`${selectedType}-${selectedStatus}-${selectedPeriod}-${dateFrom}-${dateTo}`}
           chunkedLoading
           showCoverageOnHover={false}
         >
@@ -232,7 +485,6 @@ function RoadMapMap() {
               position={[event.lat, event.lng]}
               icon={createEventIcon(event)}
             >
-              {/* Інформація про дорожню подію */}
               <Popup>
                 <div style={{ minWidth: '180px' }}>
                   <strong>{event.title}</strong>
@@ -253,6 +505,13 @@ function RoadMapMap() {
                       {statuses[event.status].label}
                     </strong>
                   </p>
+
+                  <p>
+                    Дата створення:{' '}
+                    {new Date(
+                      event.createdAt
+                    ).toLocaleDateString('uk-UA')}
+                  </p>
                 </div>
               </Popup>
             </Marker>
@@ -260,7 +519,22 @@ function RoadMapMap() {
         </MarkerClusterGroup>
       </MapContainer>
 
-      {/* Повідомлення про демонстраційні дані */}
+      {/* Повідомлення про відсутність результатів */}
+      {filteredEvents.length === 0 && !invalidDateRange && (
+        <p
+          role="status"
+          style={{
+            fontSize: '13px',
+            color: '#64748b',
+            marginTop: '12px',
+          }}
+        >
+          За вибраними фільтрами подій не знайдено.
+          Спробуйте змінити параметри.
+        </p>
+      )}
+
+      {/* Примітка про демонстраційні дані */}
       <p
         style={{
           fontSize: '12px',
