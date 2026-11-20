@@ -17,6 +17,7 @@ import RoadMapMap from './components/RoadMapMap'
 import ReportCreatePage from './pages/ReportCreatePage'
 import ReportDetailsPage from './pages/ReportDetailsPage'
 import ServiceDashboardPage from './pages/ServiceDashboardPage'
+import ContractorDashboardPage from './pages/ContractorDashboardPage'
 import { mapEvents, type RoadEventStatus } from './data/mapEvents'
 import AppLayout from './components/AppLayout'
 import {
@@ -999,15 +1000,16 @@ function App() {
             }
           />
 
-  {/* Демонстраційний кабінет лише для розробки */}
-    <Route
-       path="/service/demo"
-        element={
-         import.meta.env.DEV
-           ? <ServiceDashboardPage />
-           : <h2>Демонстраційний кабінет недоступний</h2>
-           }
+          {/* Демонстраційний кабінет лише для розробки */}
+          <Route
+            path="/service/demo"
+            element={
+              import.meta.env.DEV
+                ? <ServiceDashboardPage />
+                : <h2>Демонстраційний кабінет недоступний</h2>
+            }
           />
+          {/* KAN-72 — кабінет підрядника з перевіркою ролі */}
           <Route
             path="/contractor"
             element={
@@ -1015,10 +1017,17 @@ function App() {
                 allowedRoles={['contractor']}
                 title="Кабінет підрядника"
               >
-                <Placeholder
-                  text="Перегляд призначених робіт буде реалізовано в окремому завданні."
-                />
+                <ContractorDashboardPage />
               </ProtectedPage>
+            }
+          />
+          {/* Демонстраційний маршрут доступний лише в режимі розробки */}
+          <Route
+            path="/contractor/demo"
+            element={
+              import.meta.env.DEV
+                ? <ContractorDashboardPage />
+                : <h2>Демонстраційний кабінет недоступний</h2>
             }
           />
           <Route
