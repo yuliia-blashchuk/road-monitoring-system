@@ -3,6 +3,7 @@ import { useState, type CSSProperties } from 'react'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import MarkerClusterGroup from 'react-leaflet-cluster'
 import L from 'leaflet'
+import { Link } from 'react-router'
 
 import {
   mapEvents,
@@ -512,6 +513,23 @@ function RoadMapMap() {
                       event.createdAt
                     ).toLocaleDateString('uk-UA')}
                   </p>
+
+                  <Link
+                    to={`/reports/${event.id}`}
+                    style={{
+                      display: 'inline-block',
+                      marginTop: '8px',
+                      padding: '9px 14px',
+                      borderRadius: '8px',
+                      backgroundColor: '#2589c4',
+                      color: '#ffffff',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      textDecoration: 'none',
+                    }}
+                  >
+                    Переглянути заявку →
+                  </Link>
                 </div>
               </Popup>
             </Marker>
