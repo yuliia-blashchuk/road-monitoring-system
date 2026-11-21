@@ -5,14 +5,18 @@
 а обмеження таблиць - остання лінія захисту.
 """
 
+import uuid
 from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.enums import PhotoKind
+from app.core.storage import get_storage
 from app.modules.admin import repository as reference
 from app.modules.reports import repository as repo
-from app.modules.reports.models import Request
+from app.modules.reports.models import Photo, Request
+from app.modules.reports.photos import MAX_PHOTOS, CleanPhoto, PhotoError, clean_photo
 from app.modules.reports.schemas import ReportCreatedOut, ReportCreateForm
 from app.modules.users.models import User
 
@@ -50,10 +54,23 @@ async def _check_hourly_limit(session: AsyncSession, user: User) -> None:
         )
 
 
+def _clean_photos(files: list[tuple[str, bytes]]) -> list[CleanPhoto]:
+    if len(files) > MAX_PHOTOS:
+        raise field_error("photos", "Можна додати не більше 3 фото")
+    try:
+        return [clean_photo(name, raw) for name, raw in files]
+    except PhotoError as exc:
+        raise field_error("photos", str(exc)) from exc
+
+
 async def create_report(
-    session: AsyncSession, user: User, data: ReportCreateForm
+    session: AsyncSession,
+    user: User,
+    data: ReportCreateForm,
+    files: list[tuple[str, bytes]] | None = None,
 ) -> ReportCreatedOut:
     await _check_hourly_limit(session, user)
+    photos = _clean_photos(files or [])
 
     problem_type = await reference.problem_type_by_code(session, data.problem_type)
     if problem_type is None or not problem_type.is_active:
@@ -76,7 +93,32 @@ async def create_report(
         ),
     )
     await repo.add_first_status(session, request, user.id)
-    await session.commit()
+
+    # Файли записуються до commit; якщо збереження в БД не вдасться - їх видаляємо,
+    # щоб не лишилось фото без заявки (або все, або нічого).
+    storage = get_storage()
+    saved: list[str] = []
+    try:
+        for photo in photos:
+            key = f"reports/{request.id}/{uuid.uuid4().hex}.{photo.extension}"
+            storage.save(key, photo.data)
+            saved.append(key)
+            session.add(
+                Photo(
+                    request_id=request.id,
+                    uploaded_by=user.id,
+                    kind=PhotoKind.BEFORE,
+                    storage_key=key,
+                    mime_type=photo.mime_type,
+                    size_bytes=len(photo.data),
+                )
+            )
+        await session.commit()
+    except Exception:
+        await session.rollback()
+        for key in saved:
+            storage.delete(key)
+        raise
 
     return ReportCreatedOut(
         id=request.id,
@@ -85,6 +127,6 @@ async def create_report(
         priority=request.priority,
         problem_type=problem_type.code,
         service=None,  # службу визначає маршрутизація (KAN-58)
-        photos_count=0,
+        photos_count=len(photos),
         created_at=request.created_at,
     )
