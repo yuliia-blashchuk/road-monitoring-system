@@ -19,6 +19,7 @@ from app.modules.reports import repository as repo
 from app.modules.reports.models import Photo, Request
 from app.modules.reports.photos import MAX_PHOTOS, CleanPhoto, PhotoError, clean_photo
 from app.modules.reports.schemas import ReportCreatedOut, ReportCreateForm
+from app.modules.routing.service import route
 from app.modules.users import service as users
 from app.modules.users.models import User
 
@@ -105,11 +106,17 @@ async def create_report(
 
     _check_device_time(data.device_created_at)
 
+    # Служба, копія і початковий пріоритет за правилами маршрутизації (KAN-58).
+    routing = await route(session, problem_type.id, data.latitude, data.longitude)
+
     request = await repo.add_request(
         session,
         Request(
             author_id=user.id,
             problem_type_id=problem_type.id,
+            service_id=routing.service.id if routing.service else None,
+            copy_service_id=routing.copy_service.id if routing.copy_service else None,
+            priority=routing.priority,
             location=repo.point(data.latitude, data.longitude),
             address=data.address,
             comment=data.comment,
@@ -149,6 +156,10 @@ async def create_report(
                 "problem_type": problem_type.code,
                 "photos": len(photos),
                 "channel": "offline" if data.device_created_at else "online",
+                "service_id": routing.service.id if routing.service else None,
+                "copy_service_id": routing.copy_service.id if routing.copy_service else None,
+                "priority": routing.priority.value,
+                "routing_rule_id": routing.rule_id,
             },
         )
         await session.commit()
@@ -164,7 +175,8 @@ async def create_report(
         status=request.status,
         priority=request.priority,
         problem_type=problem_type.code,
-        service=None,  # службу визначає маршрутизація (KAN-58)
+        service=routing.service.name if routing.service else None,
+        copy_service=routing.copy_service.name if routing.copy_service else None,
         photos_count=len(photos),
         created_at=request.created_at,
     )

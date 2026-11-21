@@ -65,5 +65,8 @@ class ReportCreatedOut(BaseModel):
     priority: Priority
     problem_type: str
     service: str | None = Field(description="Назва служби; null - заявку отримує адміністратор")
+    copy_service: str | None = Field(
+        default=None, description="Служба, яка отримала копію (наприклад, поліція для перешкоди)"
+    )
     photos_count: int
     created_at: datetime
