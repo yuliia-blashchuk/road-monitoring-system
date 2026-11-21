@@ -111,6 +111,101 @@ docker compose exec api alembic revision --autogenerate -m "опис"   # нов
 docker compose exec api alembic upgrade head                    # застосувати міграції
 ```
 
+## База даних
+
+PostgreSQL 16 + PostGIS. Схема створюється міграціями Alembic автоматично під час `docker compose up` (`alembic upgrade head`):
+
+| Міграція | Що робить |
+|---|---|
+| `0001` | вмикає PostGIS |
+| `0002` | таблиці за ER-моделлю (15 таблиць), обмеження CHECK/UNIQUE, геоіндекси, тригери незмінності журналів |
+| `0003` | довідники: ролі, типи проблем, служби, межа міста, правила маршрутизації, політики доступу (RBAC) |
+
+Підключитися до БД з комп'ютера (DBeaver, pgAdmin): `localhost:5432`, база/користувач/пароль — з `.env`.
+
+## Вхід і демо-користувачі
+
+- `POST /api/v1/auth/register` — реєстрація водія (обов'язкові згоди `terms` і `personal_data`).
+- `POST /api/v1/auth/login` — вхід, повертає JWT-токен (поле `username` — це email).
+- `GET /api/v1/auth/me` — поточний користувач.
+
+Створити демо-акаунти для кожної ролі (пароль `Demo12345`):
+
+```
+docker compose exec api python -m app.scripts.create_demo_users
+```
+
+Без Docker — двічі клацнути `scripts\windows\4-create-demo-users.bat`.
+
+| Email | Роль |
+|---|---|
+| driver@roadmap.local | Водій |
+| dispatcher@roadmap.local | Диспетчер комунальної служби |
+| operator@roadmap.local | Оператор комунальної служби |
+| police@roadmap.local | Дорожня поліція |
+| contractor@roadmap.local | Підрядник |
+| admin@roadmap.local | Адміністратор |
+| dg@roadmap.local | Data Governance |
+
+У Swagger (`/docs`) натисни **Authorize**, введи email у поле `username` і пароль — далі всі запити йдуть з токеном.
+
+## Права доступу (RBAC)
+
+Права задаються таблицею `access_policy` (матриця «роль × ресурс × дія», п. 3.4 звіту) і перевіряються на сервері для кожного запиту:
+
+```python
+from typing import Annotated
+from fastapi import Depends
+from app.core.access_control import AccessContext, require
+
+ChangeStatus = Annotated[AccessContext, Depends(require("report", "change_status"))]
+
+@router.patch("/reports/{report_id}/status")
+async def change_status(report_id: int, ctx: ChangeStatus, ...):
+    await ctx.ensure_target(entity_id=report_id, service_ids=[report.service_id, report.copy_service_id])
+```
+
+- немає політики для ролі → **403** і запис `ACCESS_DENIED` у журнал аудиту;
+- `ctx.scope` — область дії (`own`, `service`, `all`, `public`), `ensure_target()` перевіряє конкретний запис;
+- `app.core.classification.filter_request()` прибирає з відповіді поля, які роль бачити не повинна.
+
+Тести працюють з окремою базою `roadmap_test`, яка створюється автоматично.
+
+## Створення заявки (KAN-57)
+
+`POST /api/v1/reports` — лише для водія, формат `multipart/form-data`:
+
+| Поле | Обов'язкове | Правило |
+|---|---|---|
+| `problem_type` | так | код з `GET /api/v1/problem-types` (`pothole`, `obstacle`, …) |
+| `latitude`, `longitude` | так | WGS84; точка в межах міста, інакше 422 «Ділянка не обслуговується» |
+| `comment` | ні | до 300 символів |
+| `photos` | ні | до 3 файлів JPEG / PNG / WebP, кожен до 5 МБ; EXIF видаляється |
+| `media_sharing_consent` | якщо є фото або коментар | `true` — згода передати службі фото й коментар |
+| `address`, `device_created_at` | ні | адреса; час створення офлайн-заявки (не старше 24 год) |
+
+Відповіді: **201** з `number` і `status`, **422** з назвою поля в `detail[0].loc`, **403** без згоди на обробку персональних даних, **429** після 10 заявок за годину.
+
+Приклад для фронтенду:
+
+```ts
+const body = new FormData()
+body.append('problem_type', 'pothole')
+body.append('latitude', String(lat))
+body.append('longitude', String(lng))
+body.append('comment', comment)
+body.append('media_sharing_consent', 'true')
+files.forEach((file) => body.append('photos', file))
+
+await fetch(`${API_URL}/reports`, {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${token}` }, // Content-Type не задавати: браузер додасть сам
+  body,
+})
+```
+
+Фото зберігаються в папці `backend/media` (налаштування `MEDIA_DIR`); у продуктиві замість неї буде MinIO через той самий інтерфейс `app/core/storage.py`.
+
 ## Як працюємо з Git
 
 Коротко: у `main` напряму не пишемо. Кожна задача робиться в окремій гілці, потім відкривається Pull Request, і після рев'ю він зливається в `main`. Детально описано в [CONTRIBUTING.md](CONTRIBUTING.md).

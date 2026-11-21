@@ -6,6 +6,7 @@
 """
 
 import os
+import tempfile
 
 # Налаштування задаємо до імпорту застосунку, щоб він підключився до тестової БД.
 os.environ["ENVIRONMENT"] = "test"
@@ -13,6 +14,8 @@ _base_db = os.environ.get("POSTGRES_DB", "roadmap")
 if not _base_db.endswith("_test"):
     os.environ["POSTGRES_DB"] = f"{_base_db}_test"
 os.environ.setdefault("JWT_SECRET", "test-secret-key-for-pytest-only-0123456789")
+# Фото з тестів пишуться в тимчасову папку, а не в backend/media.
+os.environ["MEDIA_DIR"] = tempfile.mkdtemp(prefix="roadmap-test-media-")
 
 import asyncio  # noqa: E402
 from collections.abc import AsyncIterator  # noqa: E402
