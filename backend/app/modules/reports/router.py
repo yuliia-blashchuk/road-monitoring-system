@@ -21,7 +21,7 @@ CreateReport = Annotated[AccessContext, Depends(require("report", "create"))]
     status_code=status.HTTP_201_CREATED,
     summary="Створити заявку (водій)",
     responses={
-        403: {"description": "Роль не водій"},
+        403: {"description": "Роль не водій або немає згоди personal_data"},
         422: {"description": "Помилка в полях: тип, координати, коментар, межі міста"},
         429: {"description": "Понад 10 заявок на годину з акаунта"},
     },

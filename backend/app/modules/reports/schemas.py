@@ -34,6 +34,13 @@ class ReportCreateForm(BaseModel):
         default=None,
         description="Час створення на пристрої для офлайн-заявки (DQ-09)",
     )
+    media_sharing_consent: bool = Field(
+        default=False,
+        description=(
+            "Згода передати службі фото й коментар (media_sharing). Потрібна, якщо є фото "
+            "або коментар; true зберігає згоду, якщо її ще немає"
+        ),
+    )
 
     @field_validator("problem_type")
     @classmethod

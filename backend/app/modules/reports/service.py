@@ -11,13 +11,15 @@ from datetime import UTC, datetime, timedelta
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.enums import PhotoKind
+from app.core.enums import ConsentType, PhotoKind
 from app.core.storage import get_storage
 from app.modules.admin import repository as reference
+from app.modules.audit import service as audit
 from app.modules.reports import repository as repo
 from app.modules.reports.models import Photo, Request
 from app.modules.reports.photos import MAX_PHOTOS, CleanPhoto, PhotoError, clean_photo
 from app.modules.reports.schemas import ReportCreatedOut, ReportCreateForm
+from app.modules.users import service as users
 from app.modules.users.models import User
 
 HOURLY_LIMIT = 10  # E3, DQ-11: захист від спаму
@@ -63,14 +65,36 @@ def _clean_photos(files: list[tuple[str, bytes]]) -> list[CleanPhoto]:
         raise field_error("photos", str(exc)) from exc
 
 
+async def _check_consents(
+    session: AsyncSession, user: User, data: ReportCreateForm, has_media: bool
+) -> None:
+    """Перевірка згод перед створенням (п. 3.5): personal_data - завжди,
+    media_sharing - якщо водій передає фото або коментар."""
+    if not await users.has_consent(session, user, ConsentType.PERSONAL_DATA):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "Потрібно прийняти актуальну згоду на обробку персональних даних",
+        )
+    if not has_media or await users.has_consent(session, user, ConsentType.MEDIA_SHARING):
+        return
+    if not data.media_sharing_consent:
+        raise field_error(
+            "media_sharing_consent",
+            "Щоб передати службі фото й коментар, потрібна згода на передачу даних",
+        )
+    await users.grant_consent(session, user, ConsentType.MEDIA_SHARING)
+
+
 async def create_report(
     session: AsyncSession,
     user: User,
     data: ReportCreateForm,
     files: list[tuple[str, bytes]] | None = None,
 ) -> ReportCreatedOut:
+    files = files or []
+    await _check_consents(session, user, data, has_media=bool(files or data.comment))
     await _check_hourly_limit(session, user)
-    photos = _clean_photos(files or [])
+    photos = _clean_photos(files)
 
     problem_type = await reference.problem_type_by_code(session, data.problem_type)
     if problem_type is None or not problem_type.is_active:
@@ -113,6 +137,20 @@ async def create_report(
                     size_bytes=len(photo.data),
                 )
             )
+        audit.record(
+            session,
+            "REPORT_CREATED",
+            actor_id=user.id,
+            actor_role=user.role.code,
+            entity_type="request",
+            entity_id=request.id,
+            new_value={
+                "number": request.number,
+                "problem_type": problem_type.code,
+                "photos": len(photos),
+                "channel": "offline" if data.device_created_at else "online",
+            },
+        )
         await session.commit()
     except Exception:
         await session.rollback()

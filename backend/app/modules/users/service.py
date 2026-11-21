@@ -5,7 +5,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
-from app.core.enums import RoleCode
+from app.core.enums import ConsentType, RoleCode
 from app.core.security import create_access_token, hash_password, verify_password
 from app.modules.audit import service as audit
 from app.modules.users import repository as repo
@@ -99,4 +99,28 @@ async def profile(session: AsyncSession, user: User) -> UserOut:
         service_id=user.service_id,
         contractor_id=user.contractor_id,
         consents=[ConsentOut.model_validate(c) for c in consents],
+    )
+
+
+async def has_consent(session: AsyncSession, user: User, consent_type: ConsentType) -> bool:
+    """Чинна згода: актуальна версія тексту і не відкликана (п. 3.5, is_active)."""
+    version = get_settings().consent_version
+    return any(
+        c.type == consent_type and c.is_active(version)
+        for c in await repo.active_consents(session, user.id)
+    )
+
+
+async def grant_consent(session: AsyncSession, user: User, consent_type: ConsentType) -> None:
+    """Зберігає нову згоду і подію CONSENT_GRANTED (без commit)."""
+    version = get_settings().consent_version
+    (consent,) = await repo.add_consents(session, user, [consent_type], version)
+    audit.record(
+        session,
+        "CONSENT_GRANTED",
+        actor_id=user.id,
+        actor_role=user.role.code,
+        entity_type="consent",
+        entity_id=consent.id,
+        new_value={"type": consent_type.value, "version": version},
     )

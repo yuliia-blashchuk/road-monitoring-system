@@ -17,7 +17,11 @@ KYIV = {"latitude": 50.4501, "longitude": 30.5234}
 async def make_driver(
     db: AsyncSession,
     email: str = "driver@test.ua",
-    consents: tuple[ConsentType, ...] = (ConsentType.TERMS, ConsentType.PERSONAL_DATA),
+    consents: tuple[ConsentType, ...] = (
+        ConsentType.TERMS,
+        ConsentType.PERSONAL_DATA,
+        ConsentType.MEDIA_SHARING,
+    ),
 ) -> User:
     user = User(
         email=email,
