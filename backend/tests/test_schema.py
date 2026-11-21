@@ -63,7 +63,7 @@ async def test_reference_data_seeded(db: AsyncSession) -> None:
     roles = set((await db.execute(select(Role.code))).scalars())
     assert roles == {"driver", "operator", "dispatcher", "contractor", "admin", "data_governance"}
     assert await db.scalar(select(func.count()).select_from(ProblemType)) == 6
-    assert await db.scalar(select(func.count()).select_from(Service)) == 2
+    assert await db.scalar(select(func.count()).select_from(Service)) == 3
     assert await db.scalar(select(func.count()).select_from(AccessPolicy)) > 0
 
 
@@ -77,18 +77,50 @@ async def test_every_problem_type_has_routing_rule(db: AsyncSession) -> None:
     assert missing.scalars().all() == []
 
 
-async def test_obstacle_copies_to_police(db: AsyncSession) -> None:
-    row = (
-        await db.execute(
+async def _rule(db: AsyncSession, code: str) -> list[tuple[str, str | None, str]]:
+    rows = await db.execute(
+        text(
+            "SELECT s.name, cs.name, r.initial_priority FROM routing_rule r "
+            "JOIN problem_type pt ON pt.id = r.problem_type_id "
+            "JOIN service s ON s.id = r.service_id "
+            "LEFT JOIN service cs ON cs.id = r.copy_service_id "
+            "WHERE pt.code = :code ORDER BY s.name"
+        ),
+        {"code": code},
+    )
+    return [(a, b, str(c)) for a, b, c in rows]
+
+
+async def test_accident_goes_to_police_critical(db: AsyncSession) -> None:
+    """KAN-58: ДТП -> поліція, критичний, копія комунальній службі."""
+    [(service, copy, priority)] = await _rule(db, "accident")
+    assert "поліція" in service and copy is not None and "Комунальна" in copy
+    assert priority == "critical"
+
+
+async def test_obstacle_police_with_communal_copy(db: AsyncSession) -> None:
+    """KAN-58: перешкода -> поліція + копія комунальній службі."""
+    [(service, copy, priority)] = await _rule(db, "obstacle")
+    assert "поліція" in service and "Комунальна" in copy and priority == "high"
+
+
+async def test_pothole_rule_for_each_district(db: AsyncSession) -> None:
+    rules = await _rule(db, "pothole")
+    assert len(rules) == 2
+    assert all(copy is None and priority == "medium" for _, copy, priority in rules)
+
+
+async def test_district_zones_split_city(db: AsyncSession) -> None:
+    """F-23: точка належить зоні рівно однієї комунальної служби."""
+    for lon in (23.95, 24.10):
+        names = await db.scalars(
             text(
-                "SELECT s.kind, cs.kind, r.initial_priority FROM routing_rule r "
-                "JOIN problem_type pt ON pt.id = r.problem_type_id "
-                "JOIN service s ON s.id = r.service_id "
-                "JOIN service cs ON cs.id = r.copy_service_id WHERE pt.code = 'obstacle'"
-            )
+                "SELECT name FROM service WHERE kind = 'communal' AND ST_Contains(zone, "
+                "ST_SetSRID(ST_MakePoint(:lon, 49.84), 4326))"
+            ),
+            {"lon": lon},
         )
-    ).one()
-    assert tuple(map(str, row)) == ("communal", "police", "high")
+        assert len(names.all()) == 1
 
 
 async def test_point_inside_city(db: AsyncSession) -> None:
