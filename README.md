@@ -102,6 +102,7 @@ road-monitoring-system/
 - Вхід: `POST /auth/login` (форма `username` = email, `password`) → `access_token`; далі в кожному запиті заголовок `Authorization: Bearer <access_token>`.
 - Які кнопки показувати: `GET /auth/me/permissions`.
 
+
 ### Корисні команди
 
 ```

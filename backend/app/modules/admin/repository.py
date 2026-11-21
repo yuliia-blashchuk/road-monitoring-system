@@ -1,10 +1,10 @@
 """Запити до БД довідників і політик доступу."""
 
-from sqlalchemy import select
+from sqlalchemy import exists, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
-from app.modules.admin.models import AccessPolicy, ProblemType, Service
+from app.modules.admin.models import AccessPolicy, CityBoundary, ProblemType, Service
 from app.modules.routing.models import RoutingRule
 
 
@@ -17,6 +17,14 @@ async def active_problem_types(session: AsyncSession) -> list[ProblemType]:
 
 async def problem_type_by_code(session: AsyncSession, code: str) -> ProblemType | None:
     return await session.scalar(select(ProblemType).where(ProblemType.code == code))
+
+
+async def point_in_city(session: AsyncSession, latitude: float, longitude: float) -> bool:
+    """DQ-03, виняток E2: точка лежить у межах міста (ST_Contains)."""
+    pt = func.ST_SetSRID(func.ST_MakePoint(longitude, latitude), 4326)
+    return bool(
+        await session.scalar(select(exists().where(func.ST_Contains(CityBoundary.geom, pt))))
+    )
 
 
 async def add_problem_type(session: AsyncSession, item: ProblemType) -> ProblemType:
