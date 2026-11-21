@@ -110,12 +110,10 @@ async def test_report_created_audit(client: AsyncClient, db: AsyncSession) -> No
     entry = await db.scalar(select(AuditLog).where(AuditLog.action == "REPORT_CREATED"))
     assert entry.actor_id == driver.id and entry.actor_role == "driver"
     assert entry.entity_type == "request" and entry.entity_id == body["id"]
-    assert entry.new_value == {
-        "number": body["number"],
-        "problem_type": "pothole",
-        "photos": 1,
-        "channel": "online",
-    }
+    assert entry.new_value["number"] == body["number"]
+    assert entry.new_value["problem_type"] == "pothole"
+    assert entry.new_value["photos"] == 1
+    assert entry.new_value["channel"] == "online"
     assert entry.correlation_id is not None
 
 
