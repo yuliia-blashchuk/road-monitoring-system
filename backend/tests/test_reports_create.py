@@ -126,6 +126,27 @@ async def test_offline_device_time(
     assert response.status_code == (201 if ok else 422), response.text
 
 
+async def test_hourly_limit(client: AsyncClient, db: AsyncSession) -> None:
+    """TC-UC01-08, E3: одинадцята заявка за годину - 429, заявку не створено."""
+    driver = await make_driver(db)
+    for i in range(10):
+        point = {"latitude": 49.80 + i * 0.005, "longitude": 24.00}
+        response = await client.post(URL, data=form(**point), headers=auth(driver))
+        assert response.status_code == 201
+    response = await client.post(URL, data=form(), headers=auth(driver))
+    assert response.status_code == 429
+    assert "10 заявок" in response.json()["detail"]
+    assert await count_requests(db) == 10
+
+
+async def test_hourly_limit_is_per_driver(client: AsyncClient, db: AsyncSession) -> None:
+    first = await make_driver(db, "first@test.ua")
+    second = await make_driver(db, "second@test.ua")
+    for _ in range(10):
+        await client.post(URL, data=form(), headers=auth(first))
+    assert (await client.post(URL, data=form(), headers=auth(second))).status_code == 201
+
+
 async def test_only_driver_can_create(client: AsyncClient, db: AsyncSession) -> None:
     dispatcher = await make_staff(db, "dispatcher", ServiceKind.COMMUNAL)
     response = await client.post(URL, data=form(), headers=auth(dispatcher))

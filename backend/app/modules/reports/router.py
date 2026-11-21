@@ -22,6 +22,7 @@ CreateReport = Annotated[AccessContext, Depends(require("report", "create"))]
     responses={
         403: {"description": "Роль не водій"},
         422: {"description": "Помилка в полях: тип, координати, коментар, межі міста"},
+        429: {"description": "Понад 10 заявок на годину з акаунта"},
     },
 )
 async def create_report(

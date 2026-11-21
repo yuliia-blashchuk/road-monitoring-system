@@ -1,6 +1,9 @@
 """Запити до БД модуля reports. Інші модулі сюди напряму не звертаються."""
 
+from datetime import datetime
+
 from geoalchemy2 import WKTElement
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.enums import RequestStatus
@@ -28,4 +31,13 @@ async def add_first_status(session: AsyncSession, request: Request, user_id: int
             to_status=RequestStatus.NEW,
             changed_by=user_id,
         )
+    )
+
+
+async def count_since(session: AsyncSession, author_id: int, since: datetime) -> int:
+    """Скільки заявок автор створив починаючи з моменту since (ліміт E3)."""
+    return await session.scalar(
+        select(func.count())
+        .select_from(Request)
+        .where(Request.author_id == author_id, Request.created_at >= since)
     )

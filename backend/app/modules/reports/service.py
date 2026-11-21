@@ -16,6 +16,7 @@ from app.modules.reports.models import Request
 from app.modules.reports.schemas import ReportCreatedOut, ReportCreateForm
 from app.modules.users.models import User
 
+HOURLY_LIMIT = 10  # E3, DQ-11: захист від спаму
 OFFLINE_MAX_AGE = timedelta(hours=24)  # QR-06, DQ-09
 CLOCK_SKEW = timedelta(minutes=5)  # годинник телефона може трохи поспішати
 
@@ -40,9 +41,20 @@ def _check_device_time(value: datetime | None) -> None:
         )
 
 
+async def _check_hourly_limit(session: AsyncSession, user: User) -> None:
+    since = datetime.now(UTC) - timedelta(hours=1)
+    if await repo.count_since(session, user.id, since) >= HOURLY_LIMIT:
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            "Перевищено ліміт: не більше 10 заявок на годину",
+        )
+
+
 async def create_report(
     session: AsyncSession, user: User, data: ReportCreateForm
 ) -> ReportCreatedOut:
+    await _check_hourly_limit(session, user)
+
     problem_type = await reference.problem_type_by_code(session, data.problem_type)
     if problem_type is None or not problem_type.is_active:
         raise field_error("problem_type", "Невідомий тип проблеми")  # DQ-02
