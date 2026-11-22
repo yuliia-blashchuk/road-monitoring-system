@@ -167,6 +167,12 @@ async def test_my_permissions(client: AsyncClient, db: AsyncSession) -> None:
         (AccessRole.CONTRACTOR, "work", "update_progress", AccessScope.OWN),
         (AccessRole.ADMIN, "work", "assign", AccessScope.ALL),
         (AccessRole.DATA_GOVERNANCE, "access_policy", "manage", AccessScope.ALL),
+        # KAN-59: підрядник змінює статус лише у своїх роботах, історію бачать за роллю
+        (AccessRole.CONTRACTOR, "report", "change_status", AccessScope.OWN),
+        (AccessRole.DRIVER, "report", "view_history", AccessScope.OWN),
+        (AccessRole.DISPATCHER, "report", "view_history", AccessScope.SERVICE),
+        (AccessRole.POLICE, "report", "view_history", AccessScope.SERVICE),
+        (AccessRole.ADMIN, "report", "view_history", AccessScope.ALL),
     ],
 )
 async def test_policy_exists(
@@ -185,6 +191,8 @@ async def test_policy_exists(
         (AccessRole.CONTRACTOR, "report", "view_author"),  # БП-5
         (AccessRole.DATA_GOVERNANCE, "report", "view_internal"),
         (AccessRole.DRIVER, "audit", "view"),
+        (AccessRole.DRIVER, "report", "change_status"),  # водій статуси не змінює
+        (AccessRole.DATA_GOVERNANCE, "report", "view_history"),
     ],
 )
 async def test_policy_absent_means_denied(
