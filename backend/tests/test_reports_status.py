@@ -230,15 +230,22 @@ async def test_other_district_service_denied(client: AsyncClient, db: AsyncSessi
     assert denied.entity_id == report["id"]
 
 
-async def test_copy_service_cannot_change_status(client: AsyncClient, db: AsyncSession) -> None:
+async def test_copy_service_can_change_status(client: AsyncClient, db: AsyncSession) -> None:
     """Перешкода: основна служба - поліція, комунальна служба отримала копію.
-    Копія заявку бачить, але статус змінює лише основна служба."""
+    Обидві можуть змінювати статус: комунальна служба прибирає перешкоду й сама
+    ставить «Усунена». Служба іншого району - ні."""
     report = await new_report(client, db, "obstacle")
-    communal = await make_staff(db, "dispatcher", service_name=WEST)
     police = await make_staff(db, "dispatcher", service_name=POLICE)
+    communal = await make_staff(db, "dispatcher", service_name=WEST)
+    other = await make_staff(db, "dispatcher", service_name=EAST)
 
-    assert (await patch(client, communal, report["id"], status="accepted")).status_code == 403
     assert (await patch(client, police, report["id"], status="accepted")).status_code == 200
+    assert (await patch(client, communal, report["id"], status="in_progress")).status_code == 200
+    assert (await patch(client, other, report["id"], status="resolved")).status_code == 403
+    assert (await patch(client, communal, report["id"], status="resolved")).status_code == 200
+
+    actors = [h.changed_by for h in await history(db, report["id"])][1:]
+    assert actors == [police.id, communal.id, communal.id]
 
 
 # ---------- підрядник (UC-04) ----------

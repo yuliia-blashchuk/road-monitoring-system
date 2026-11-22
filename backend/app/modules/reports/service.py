@@ -233,11 +233,12 @@ async def change_status(
     if request is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Заявку не знайдено")
 
-    # Статус змінює лише основна служба (служба-копія заявку тільки бачить),
-    # підрядник - лише в призначеній йому заявці.
+    # Статус змінюють основна служба і служба-копія: наприклад, перешкоду поліція
+    # фіксує, а комунальна служба прибирає й сама ставить «Усунена».
+    # Підрядник - лише в призначеній йому заявці.
     await ctx.ensure_target(
         entity_id=request.id,
-        service_ids=[request.service_id],
+        service_ids=[request.service_id, request.copy_service_id],
         contractor_id=request.contractor_id,
     )
 
