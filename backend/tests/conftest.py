@@ -79,6 +79,10 @@ def test_database() -> None:
 async def clean_tables() -> AsyncIterator[None]:
     yield
     async with SessionLocal() as session:
+        # Журнали audit_log і status_history захищені тригерами від очищення (QR-13).
+        # Лише тестова база після тесту вимикає тригери на час цієї транзакції
+        # (режим replica; потрібен суперкористувач, як у CI та локальному postgres).
+        await session.execute(text("SET LOCAL session_replication_role = replica"))
         await session.execute(text(f"TRUNCATE {', '.join(DATA_TABLES)} RESTART IDENTITY CASCADE"))
         await session.commit()
 

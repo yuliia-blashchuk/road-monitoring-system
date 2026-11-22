@@ -186,7 +186,7 @@ async def test_confirmation_once_per_driver(db: AsyncSession) -> None:
 
 @pytest.mark.parametrize("table", ["audit_log", "status_history"])
 async def test_logs_are_append_only(db: AsyncSession, table: str) -> None:
-    """QR-13: журнали лише доповнюються - тригер забороняє UPDATE і DELETE."""
+    """QR-13: журнали лише доповнюються - тригери забороняють UPDATE, DELETE і TRUNCATE."""
     if table == "audit_log":
         await db.execute(text("INSERT INTO audit_log (action) VALUES ('TEST')"))
     else:
@@ -203,3 +203,11 @@ async def test_logs_are_append_only(db: AsyncSession, table: str) -> None:
     with pytest.raises(DBAPIError, match="лише для додавання"):
         await db.execute(text(f"DELETE FROM {table}"))
     await db.rollback()
+    # KAN-60: TRUNCATE теж заборонено, зокрема каскадний через таблицю request.
+    with pytest.raises(DBAPIError, match="лише для додавання"):
+        await db.execute(text(f"TRUNCATE {table}"))
+    await db.rollback()
+    if table == "status_history":
+        with pytest.raises(DBAPIError, match="лише для додавання"):
+            await db.execute(text("TRUNCATE request CASCADE"))
+        await db.rollback()
