@@ -34,6 +34,20 @@ async def add_first_status(session: AsyncSession, request: Request, user_id: int
     )
 
 
+async def get_request(session: AsyncSession, request_id: int) -> Request | None:
+    return await session.get(Request, request_id)
+
+
+async def list_history(session: AsyncSession, request_id: int) -> list[StatusHistory]:
+    """Історія статусів від найстарішого запису до найновішого."""
+    rows = await session.scalars(
+        select(StatusHistory)
+        .where(StatusHistory.request_id == request_id)
+        .order_by(StatusHistory.changed_at, StatusHistory.id)
+    )
+    return list(rows)
+
+
 async def get_for_update(session: AsyncSession, request_id: int) -> Request | None:
     """Заявка з блокуванням рядка до кінця транзакції: два диспетчери не змінять
     статус одночасно (друга зміна побачить уже новий статус)."""

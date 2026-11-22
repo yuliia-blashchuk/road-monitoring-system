@@ -13,7 +13,8 @@ from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.access_control import AccessContext, deny
-from app.core.enums import ConsentType, PhotoKind, RequestStatus
+from app.core.classification import ROLE_LEVELS
+from app.core.enums import ConsentType, DataLevel, PhotoKind, RequestStatus
 from app.core.storage import get_storage
 from app.modules.admin import repository as reference
 from app.modules.audit import service as audit
@@ -24,8 +25,10 @@ from app.modules.reports.photos import MAX_PHOTOS, CleanPhoto, PhotoError, clean
 from app.modules.reports.schemas import (
     ReportCreatedOut,
     ReportCreateForm,
+    ReportHistoryOut,
     StatusChangeIn,
     StatusChangeOut,
+    StatusHistoryItem,
 )
 from app.modules.routing.service import route
 from app.modules.users import service as users
@@ -306,4 +309,37 @@ async def change_status(
         closed_at=request.closed_at,
         changed_at=entry.changed_at,
         next_statuses=lifecycle.next_statuses(target, ctx.role),
+    )
+
+
+async def report_history(
+    session: AsyncSession, ctx: AccessContext, request_id: int
+) -> ReportHistoryOut:
+    """Таймлайн статусів заявки. Водій бачить лише свої заявки, служба - заявки своєї
+    служби (зокрема копії), підрядник - призначені йому, адміністратор - усі."""
+    request = await repo.get_request(session, request_id)
+    if request is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Заявку не знайдено")
+    await ctx.ensure_target(
+        entity_id=request.id,
+        owner_id=request.author_id,
+        service_ids=[request.service_id, request.copy_service_id],
+        contractor_id=request.contractor_id,
+    )
+
+    # StatusHistory.changed_by - внутрішні дані (табл. 11): водієві не віддаємо.
+    show_actor = DataLevel.INTERNAL in ROLE_LEVELS.get(ctx.role, frozenset())
+    items = [
+        StatusHistoryItem(
+            from_status=row.from_status,
+            to_status=row.to_status,
+            to_label=lifecycle.STATUS_LABELS[row.to_status],
+            comment=row.comment,
+            changed_at=row.changed_at,
+            changed_by=row.changed_by if show_actor else None,
+        )
+        for row in await repo.list_history(session, request.id)
+    ]
+    return ReportHistoryOut(
+        id=request.id, number=request.number, status=request.status, items=items
     )

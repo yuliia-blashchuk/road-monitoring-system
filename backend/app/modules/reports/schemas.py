@@ -115,3 +115,26 @@ class StatusChangeOut(BaseModel):
     next_statuses: list[RequestStatus] = Field(
         description="Куди ця роль може перевести заявку далі (для кнопок у кабінеті)"
     )
+
+
+class StatusHistoryItem(BaseModel):
+    """Один крок таймлайну статусів (StatusHistory)."""
+
+    from_status: RequestStatus | None = Field(description="null - заявку щойно створено")
+    to_status: RequestStatus
+    to_label: str = Field(description="Назва статусу українською, наприклад «Прийнята»")
+    comment: str | None = Field(description="Коментар служби або причина відхилення")
+    changed_at: datetime
+    changed_by: int | None = Field(
+        default=None,
+        description="Хто змінив (id працівника). Внутрішні дані: водієві не віддаються",
+    )
+
+
+class ReportHistoryOut(BaseModel):
+    """Таймлайн статусів заявки (UC-03, крок 4; табл. 18: GET /reports/{id}/history)."""
+
+    id: int
+    number: int
+    status: RequestStatus
+    items: list[StatusHistoryItem]
