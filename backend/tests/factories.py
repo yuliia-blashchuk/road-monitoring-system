@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.core.enums import ConsentType, ServiceKind
 from app.core.security import create_access_token, hash_password
-from app.modules.admin.models import Service
+from app.modules.admin.models import Contractor, Service
 from app.modules.users import repository as repo
 from app.modules.users.models import User
 
@@ -35,14 +35,41 @@ async def make_driver(
     return await repo.get_by_id(db, user.id)
 
 
-async def make_staff(db: AsyncSession, role: str, kind: ServiceKind | None = None) -> User:
-    service = await db.scalar(select(Service).where(Service.kind == kind)) if kind else None
+async def make_staff(
+    db: AsyncSession,
+    role: str,
+    kind: ServiceKind | None = None,
+    service_name: str | None = None,
+) -> User:
+    """Працівник служби. service_name - конкретна служба (інакше перша служба виду kind)."""
+    if service_name:
+        service = await db.scalar(select(Service).where(Service.name == service_name))
+    elif kind:
+        service = await db.scalar(select(Service).where(Service.kind == kind))
+    else:
+        service = None
     user = User(
-        email=f"{role}-{kind or 'none'}@test.ua",
+        email=f"{role}-{service.id if service else 'none'}@test.ua",
         password_hash=hash_password("Secret123"),
         full_name=role,
         role_id=(await repo.get_role(db, role)).id,
         service_id=service.id if service else None,
+    )
+    await repo.add_user(db, user)
+    await db.commit()
+    return await repo.get_by_id(db, user.id)
+
+
+async def make_contractor(db: AsyncSession, name: str = "Тест-підрядник") -> User:
+    contractor = Contractor(name=name, edrpou=str(10_000_000 + len(name)))
+    db.add(contractor)
+    await db.flush()
+    user = User(
+        email=f"contractor-{contractor.id}@test.ua",
+        password_hash=hash_password("Secret123"),
+        full_name=name,
+        role_id=(await repo.get_role(db, "contractor")).id,
+        contractor_id=contractor.id,
     )
     await repo.add_user(db, user)
     await db.commit()

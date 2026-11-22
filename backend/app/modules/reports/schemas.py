@@ -4,7 +4,7 @@
 тому фронтенд і тести перевіряються за тим самим описом полів (KAN-57, DQ-01–DQ-05).
 """
 
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -70,3 +70,48 @@ class ReportCreatedOut(BaseModel):
     )
     photos_count: int
     created_at: datetime
+
+
+class StatusChangeIn(BaseModel):
+    """Зміна статусу заявки працівником служби або підрядником (UC-02, UC-04, KAN-59)."""
+
+    status: RequestStatus = Field(description="Новий статус", examples=["accepted"])
+    comment: str | None = Field(
+        default=None,
+        max_length=COMMENT_MAX,
+        description="Коментар для водія: що зроблено, орієнтовний строк (UC-02, крок 4)",
+    )
+    reject_reason: str | None = Field(
+        default=None,
+        max_length=COMMENT_MAX,
+        description="Причина відхилення; обов'язкова для статусу rejected (БП-3)",
+        examples=["Не підтверджено на місці"],
+    )
+    deadline: date | None = Field(
+        default=None,
+        description="Орієнтовний строк усунення; можна вказати під час прийняття заявки",
+    )
+
+    @field_validator("comment", "reject_reason")
+    @classmethod
+    def _empty_to_none(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        v = v.strip()
+        return v or None
+
+
+class StatusChangeOut(BaseModel):
+    """Заявка після зміни статусу."""
+
+    id: int
+    number: int
+    previous_status: RequestStatus
+    status: RequestStatus
+    reject_reason: str | None
+    deadline: date | None
+    closed_at: datetime | None
+    changed_at: datetime
+    next_statuses: list[RequestStatus] = Field(
+        description="Куди ця роль може перевести заявку далі (для кнопок у кабінеті)"
+    )

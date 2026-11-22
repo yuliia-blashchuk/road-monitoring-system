@@ -1,4 +1,5 @@
-"""Бізнес-логіка заявок: створення заявки водієм (UC-01, KAN-57).
+"""Бізнес-логіка заявок: створення заявки водієм (UC-01, KAN-57) і зміна статусу
+(UC-02, UC-04, KAN-59).
 
 Перевірки йдуть у порядку з п. 3.6: спершу схема Pydantic (типи, межі значень,
 довжина коментаря), далі правила, яким потрібна БД (тип з довідника, межі міста),
@@ -11,14 +12,21 @@ from datetime import UTC, datetime, timedelta
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.enums import ConsentType, PhotoKind
+from app.core.access_control import AccessContext, deny
+from app.core.enums import ConsentType, PhotoKind, RequestStatus
 from app.core.storage import get_storage
 from app.modules.admin import repository as reference
 from app.modules.audit import service as audit
+from app.modules.reports import lifecycle
 from app.modules.reports import repository as repo
 from app.modules.reports.models import Photo, Request
 from app.modules.reports.photos import MAX_PHOTOS, CleanPhoto, PhotoError, clean_photo
-from app.modules.reports.schemas import ReportCreatedOut, ReportCreateForm
+from app.modules.reports.schemas import (
+    ReportCreatedOut,
+    ReportCreateForm,
+    StatusChangeIn,
+    StatusChangeOut,
+)
 from app.modules.routing.service import route
 from app.modules.users import service as users
 from app.modules.users.models import User
@@ -179,4 +187,123 @@ async def create_report(
         copy_service=routing.copy_service.name if routing.copy_service else None,
         photos_count=len(photos),
         created_at=request.created_at,
+    )
+
+
+# ---------- зміна статусу (KAN-59) ----------
+
+# Строк можна вказати, коли служба бере заявку в роботу (UC-02, крок 4).
+DEADLINE_STATUSES = frozenset({RequestStatus.ACCEPTED, RequestStatus.IN_PROGRESS})
+
+
+def _check_status_fields(data: StatusChangeIn) -> None:
+    """БП-3: відхилити без причини неможливо; причина й строк - лише там, де вони мають сенс."""
+    if data.status == RequestStatus.REJECTED and not data.reject_reason:
+        raise field_error("reject_reason", "Вкажіть причину відхилення")
+    if data.status != RequestStatus.REJECTED and data.reject_reason:
+        raise field_error("reject_reason", "Причину вказують лише для відхилення заявки")
+    if data.deadline is not None:
+        if data.status not in DEADLINE_STATUSES:
+            raise field_error(
+                "deadline", "Строк вказують, коли заявку приймають або беруть у роботу"
+            )
+        if data.deadline < datetime.now(UTC).date():
+            raise field_error("deadline", "Строк не може бути в минулому")
+
+
+def _history_comment(data: StatusChangeIn) -> str | None:
+    """Що побачить водій у таймлайні: причину відхилення та/або коментар служби."""
+    parts = [p for p in (data.reject_reason, data.comment) if p]
+    return ". ".join(parts) or None
+
+
+async def change_status(
+    session: AsyncSession, ctx: AccessContext, request_id: int, data: StatusChangeIn
+) -> StatusChangeOut:
+    """Змінює статус заявки, пише запис у StatusHistory і AuditLog в одній транзакції.
+
+    Порядок перевірок: заявка існує (404) -> заявка в області дії ролі (403) ->
+    перехід допустимий (409) -> роль може зробити цей перехід (403, БП-6) ->
+    поля запиту (422).
+    """
+    request = await repo.get_for_update(session, request_id)
+    if request is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Заявку не знайдено")
+
+    # Статус змінює лише основна служба (служба-копія заявку тільки бачить),
+    # підрядник - лише в призначеній йому заявці.
+    await ctx.ensure_target(
+        entity_id=request.id,
+        service_ids=[request.service_id],
+        contractor_id=request.contractor_id,
+    )
+
+    current, target = request.status, data.status
+    check = lifecycle.check_transition(current, target, ctx.role)
+    if not check.allowed_status:
+        raise HTTPException(status.HTTP_409_CONFLICT, check.message)
+    if not check.allowed_role:
+        exc = await deny(
+            ctx.user,
+            ctx.role,
+            ctx.resource,
+            ctx.action,
+            ctx.endpoint,
+            reason=f"transition:{current.value}->{target.value}",
+            entity_id=request.id,
+        )
+        exc.detail = check.message
+        raise exc
+    # Якщо роботи виконує підрядник, «Усунена» ставиться лише після його
+    # «Виконана» з фотозвітом (UC-04, БП-6).
+    if (
+        current == RequestStatus.IN_PROGRESS
+        and target == RequestStatus.RESOLVED
+        and request.contractor_id is not None
+    ):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "Роботи виконує підрядник: спершу він ставить статус «Виконана»",
+        )
+    _check_status_fields(data)
+
+    request.status = target
+    if target == RequestStatus.REJECTED:
+        request.reject_reason = data.reject_reason
+    if data.deadline is not None:
+        request.deadline = data.deadline
+    if target in lifecycle.FINAL_STATUSES:
+        request.closed_at = datetime.now(UTC)
+
+    entry = await repo.add_status(
+        session, request, current, target, ctx.user.id, _history_comment(data)
+    )
+    audit.record(
+        session,
+        "STATUS_CHANGED",
+        actor_id=ctx.user.id,
+        actor_role=ctx.role.value,
+        entity_type="request",
+        entity_id=request.id,
+        old_value={"status": current.value},
+        new_value={
+            "status": target.value,
+            "number": request.number,
+            "reject_reason": data.reject_reason,
+            "deadline": data.deadline.isoformat() if data.deadline else None,
+            "has_comment": data.comment is not None,
+        },
+    )
+    await session.commit()
+
+    return StatusChangeOut(
+        id=request.id,
+        number=request.number,
+        previous_status=current,
+        status=target,
+        reject_reason=request.reject_reason,
+        deadline=request.deadline,
+        closed_at=request.closed_at,
+        changed_at=entry.changed_at,
+        next_statuses=lifecycle.next_statuses(target, ctx.role),
     )
