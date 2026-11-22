@@ -153,3 +153,23 @@ async def test_report_lifecycle_visible_in_audit(client: AsyncClient, db: AsyncS
     admin = await make_staff(db, "admin")
     body = await get(client, admin, entity_type="request", entity_id=report["id"])
     assert [i["action"] for i in body["items"]] == ["STATUS_CHANGED", "REPORT_CREATED"]
+
+
+async def test_action_counts(client: AsyncClient, db: AsyncSession) -> None:
+    await seed(db)
+    dg = await make_staff(db, "data_governance")
+    response = await client.get(f"{URL}/actions", headers=auth(dg))
+    assert response.status_code == 200, response.text
+    counts = {row["action"]: row["count"] for row in response.json()}
+    assert counts == {
+        "STATUS_CHANGED": 2,
+        "LOGIN_SUCCESS": 1,
+        "LOGIN_FAILED": 1,
+        "ACCESS_DENIED": 1,
+    }
+    assert response.json()[0]["action"] == "STATUS_CHANGED"  # найчастіша - першою
+
+
+async def test_action_counts_forbidden_for_driver(client: AsyncClient, db: AsyncSession) -> None:
+    driver = await make_driver(db)
+    assert (await client.get(f"{URL}/actions", headers=auth(driver))).status_code == 403

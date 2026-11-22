@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from app.core.access_control import AccessContext, require
 from app.modules.audit import repository as repo
 from app.modules.audit import service as audit
-from app.modules.audit.schemas import AuditLogOut, AuditPage
+from app.modules.audit.schemas import AuditActionCount, AuditLogOut, AuditPage
 from app.modules.users.dependencies import SessionDep
 
 router = APIRouter(prefix="/audit", tags=["audit"])
@@ -77,3 +77,17 @@ async def list_audit(
     )
     await session.commit()
     return page
+
+
+@router.get(
+    "/actions",
+    response_model=list[AuditActionCount],
+    summary="Типи подій у журналі (для фільтра)",
+)
+async def list_actions(session: SessionDep, ctx: ViewAudit) -> list[AuditActionCount]:
+    """Які дії є в журналі і скільки їх: STATUS_CHANGED, ACCESS_DENIED, LOGIN_FAILED тощо.
+    Повертає лише назви й кількість, без самих записів, тому окремо не журналюється."""
+    return [
+        AuditActionCount(action=action, count=count)
+        for action, count in await repo.action_counts(session)
+    ]

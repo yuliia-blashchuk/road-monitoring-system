@@ -66,3 +66,14 @@ async def search(
         .offset(offset)
     )
     return list(rows), total or 0
+
+
+async def action_counts(session: AsyncSession) -> list[tuple[str, int]]:
+    """Усі типи подій у журналі з кількістю, від найчастіших."""
+    total = func.count().label("total")
+    rows = await session.execute(
+        select(AuditLog.action, total)
+        .group_by(AuditLog.action)
+        .order_by(total.desc(), AuditLog.action)
+    )
+    return [(action, count) for action, count in rows]

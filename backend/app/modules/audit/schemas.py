@@ -41,3 +41,10 @@ class AuditPage(BaseModel):
     limit: int
     offset: int
     items: list[AuditLogOut]
+
+
+class AuditActionCount(BaseModel):
+    """Тип події і скільки разів вона трапилась - для списку фільтра в журналі."""
+
+    action: str
+    count: int
