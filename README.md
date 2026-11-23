@@ -72,6 +72,7 @@ road-monitoring-system/
    docker compose up --build
    ```
 3. Демо-акаунти: `docker compose exec api python -m app.scripts.create_demo_users`
+4. Демо-дані для показу (акаунти всіх ролей, 53 заявки з історією статусів, підтвердженнями й журналом аудиту): `docker compose exec api python -m app.scripts.seed_demo_data`
 
 Зупинити: `Ctrl + C`, потім `docker compose down`. Стерти дані БД повністю: `docker compose down -v`.
 
@@ -89,6 +90,7 @@ road-monitoring-system/
 | `2-run-backend.bat` | запускає бекенд на http://localhost:8000 |
 | `3-test-backend.bat` | запускає автотести |
 | `4-create-demo-users.bat` | створює демо-акаунти |
+| `5-seed-demo-data.bat` | демо-акаунти + 53 заявки з історією статусів і журналом аудиту |
 
 ### Перевірка (для обох способів)
 
