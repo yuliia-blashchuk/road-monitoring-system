@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 from fastapi import HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import events
 from app.core.access_control import AccessContext
 from app.core.enums import AccessScope, PhotoKind, RequestStatus
 from app.core.storage import get_storage
@@ -234,6 +235,21 @@ async def update_progress(
         for key in saved:
             storage.delete(key)
         raise
+
+    if submit:
+        # Сповіщення автору про «Виконана» (KAN-61) - після commit, як і в reports.
+        await events.publish(
+            events.StatusChanged(
+                request_id=request.id,
+                number=request.number,
+                author_id=request.author_id,
+                from_status=RequestStatus.IN_PROGRESS,
+                to_status=RequestStatus.DONE,
+                changed_by=ctx.user.id,
+                service_id=request.service_id,
+                comment=comment or "Роботи здано: фото «після» й акт завантажено",
+            )
+        )
 
     return ProgressOut(
         id=request.id,
