@@ -12,6 +12,7 @@ from datetime import UTC, datetime, timedelta
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import events
 from app.core.access_control import AccessContext, deny
 from app.core.classification import ROLE_LEVELS
 from app.core.enums import ConsentType, DataLevel, PhotoKind, RequestStatus
@@ -299,6 +300,22 @@ async def change_status(
         },
     )
     await session.commit()
+
+    # Подія для сповіщень (KAN-61). Публікується після commit: якщо сповіщення
+    # не вдасться надіслати, зміна статусу все одно збережена.
+    await events.publish(
+        events.StatusChanged(
+            request_id=request.id,
+            number=request.number,
+            author_id=request.author_id,
+            from_status=current,
+            to_status=target,
+            changed_by=ctx.user.id,
+            service_id=request.service_id,
+            comment=_history_comment(data),
+            deadline=request.deadline,
+        )
+    )
 
     return StatusChangeOut(
         id=request.id,
