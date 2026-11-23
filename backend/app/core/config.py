@@ -43,8 +43,6 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     smtp_from: str = "RoadMap <noreply@roadmap.local>"
 
-
-
     # Звідки фронтенд може звертатися до API (через кому)
     cors_origins: str = "http://localhost:5173"
 

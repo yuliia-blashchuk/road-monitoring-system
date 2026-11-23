@@ -56,9 +56,7 @@ def touch_last_login(user: User) -> None:
 async def latest_consents(session: AsyncSession, user_id: int) -> dict[ConsentType, Consent]:
     """Останній запис згоди кожного типу (історія не змінюється, п. 3.5)."""
     rows = await session.scalars(
-        select(Consent)
-        .where(Consent.user_id == user_id)
-        .order_by(Consent.accepted_at, Consent.id)
+        select(Consent).where(Consent.user_id == user_id).order_by(Consent.accepted_at, Consent.id)
     )
     return {c.type: c for c in rows}
 

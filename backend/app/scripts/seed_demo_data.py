@@ -252,9 +252,7 @@ def status_path(final: S, *, contractor_work: bool) -> list[S]:
     return path
 
 
-async def create_reports(
-    session, drivers: list[User], staff: Staff, rng: random.Random
-) -> int:
+async def create_reports(session, drivers: list[User], staff: Staff, rng: random.Random) -> int:
     types = {t.code: t for t in (await session.scalars(select(ProblemType))).all()}
     with_media = await media_consent_ids(session, drivers)
     now = datetime.now(UTC).replace(microsecond=0)
