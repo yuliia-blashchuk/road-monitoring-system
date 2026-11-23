@@ -1,4 +1,3 @@
-
 import { useState, type CSSProperties } from 'react'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import MarkerClusterGroup from 'react-leaflet-cluster'
@@ -6,11 +5,11 @@ import L from 'leaflet'
 import { Link } from 'react-router'
 
 import {
-  mapEvents,
   type RoadEvent,
   type RoadEventType,
   type RoadEventStatus,
 } from '../data/mapEvents'
+import { useRoadEvents } from '../services/useRoadEvents'
 
 import 'leaflet/dist/leaflet.css'
 import 'react-leaflet-cluster/dist/assets/MarkerCluster.css'
@@ -24,7 +23,12 @@ const eventStyles: Record<
   pothole: {
     color: '#E89B27',
     symbol: '⚠',
-    label: 'Пошкодження дороги',
+    label: 'Яма',
+  },
+  damaged_surface: {
+    color: '#C77A1C',
+    symbol: '≈',
+    label: 'Пошкоджене покриття',
   },
   accident: {
     color: '#E05252',
@@ -46,6 +50,11 @@ const eventStyles: Record<
     symbol: '●',
     label: 'Світлофор',
   },
+  other: {
+    color: '#6B7A89',
+    symbol: '?',
+    label: 'Інше',
+  },
 }
 
 // Назви та кольори статусів
@@ -65,9 +74,17 @@ const statuses: Record<
     label: 'В роботі',
     color: '#247ED0',
   },
+  done: {
+    label: 'Виконана',
+    color: '#2BA0A0',
+  },
   resolved: {
     label: 'Усунена',
     color: '#37A576',
+  },
+  rejected: {
+    label: 'Відхилена',
+    color: '#8A94A6',
   },
 }
 
@@ -137,6 +154,9 @@ function createEventIcon(event: RoadEvent) {
 
 // Основний компонент карти
 function RoadMapMap() {
+  // Заявки з бекенду (GET /reports) замість демо-даних
+  const { events: mapEvents } = useRoadEvents()
+
   // Фільтр за типом дорожньої події
   const [selectedType, setSelectedType] =
     useState<RoadEventType | 'all'>('all')
@@ -265,21 +285,14 @@ function RoadMapMap() {
             style={filterStyle}
           >
             <option value="all">Усі категорії</option>
-            <option value="pothole">
-              Пошкодження дороги
+            <option value="pothole">Ями</option>
+            <option value="damaged_surface">
+              Пошкоджене покриття
             </option>
-            <option value="accident">
-              Аварії
-            </option>
-            <option value="obstacle">
-              Перешкоди
-            </option>
-            <option value="roadworks">
-              Ремонтні роботи
-            </option>
-            <option value="traffic_light">
-              Світлофори
-            </option>
+            <option value="accident">Аварії</option>
+            <option value="obstacle">Перешкоди</option>
+            <option value="traffic_light">Світлофори</option>
+            <option value="other">Інше</option>
           </select>
         </div>
 
@@ -306,7 +319,7 @@ function RoadMapMap() {
             <option value="new">Нові</option>
             <option value="accepted">Прийняті</option>
             <option value="in_progress">В роботі</option>
-            <option value="resolved">Усунені</option>
+            <option value="done">Виконані</option>
           </select>
         </div>
 
@@ -560,8 +573,8 @@ function RoadMapMap() {
           marginTop: '10px',
         }}
       >
-        Демонстраційні дорожні події.
-        Інформація не відображає реальний стан доріг.
+        Показано відкриті заявки з бази RoadMap.
+        Усунені й відхилені заявки з карти прибираються.
       </p>
     </div>
   )
