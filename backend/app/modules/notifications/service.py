@@ -2,14 +2,20 @@
 
 Модуль підписаний на подію StatusChanged із внутрішньої шини (app/core/events.py):
 модуль заявок нічого не знає про сповіщення, він лише публікує подію.
-Сповіщення зберігаються в таблиці notification і показуються у стрічці водія.
+Сповіщення зберігаються в таблиці notification і показуються у стрічці водія;
+email отримують лише ті, хто дав згоду email_notifications (п. 3.5).
 """
 
-from app.core import events
+import logging
+
+from app.core import events, mailer
 from app.core.database import SessionLocal
-from app.core.enums import RequestStatus
+from app.core.enums import ConsentType, RequestStatus
 from app.modules.notifications import repository as repo
 from app.modules.reports.lifecycle import STATUS_LABELS
+from app.modules.users import service as users_service
+
+log = logging.getLogger("roadmap.notifications")
 
 STATUS_CHANGED = "STATUS_CHANGED"
 
@@ -40,6 +46,19 @@ async def on_status_changed(event: events.StatusChanged) -> None:
             session, [u.id for u in users], event.request_id, STATUS_CHANGED, message
         )
         await session.commit()
+
+        # Email - лише за згодою. Збій пошти не скасовує сповіщення в застосунку.
+        for user in users:
+            if not await users_service.has_consent(session, user, ConsentType.EMAIL_NOTIFICATIONS):
+                continue
+            try:
+                await mailer.send_email(
+                    user.email,
+                    f"RoadMap: заявка №{event.number} - {STATUS_LABELS[event.to_status]}",
+                    message,
+                )
+            except Exception:
+                log.exception("Не вдалося надіслати лист користувачу %s", user.id)
 
 
 # Підписка спрацьовує, коли застосунок імпортує модуль сповіщень (через router.py).

@@ -35,6 +35,16 @@ class Settings(BaseSettings):
     # Папка для фото заявок (локальне сховище; у продуктиві - MinIO через той самий інтерфейс)
     media_dir: str = "media"
 
+    # Пошта для email-сповіщень (KAN-61). Порожній SMTP_HOST - листи не надсилаються.
+    # Для демо - Mailpit: SMTP_HOST=localhost, SMTP_PORT=1025, листи видно на localhost:8025.
+    smtp_host: str = ""
+    smtp_port: int = 1025
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = "RoadMap <noreply@roadmap.local>"
+
+
+
     # Звідки фронтенд може звертатися до API (через кому)
     cors_origins: str = "http://localhost:5173"
 
