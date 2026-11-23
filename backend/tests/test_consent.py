@@ -214,9 +214,7 @@ async def test_revoke_keeps_history(client: AsyncClient, db: AsyncSession) -> No
     contact = next(s for s in response.json() if s["type"] == "contact")
     assert contact["active"] is False and contact["revoked_at"] is not None
     record = await db.scalar(
-        select(Consent)
-        .where(Consent.type == "contact")
-        .execution_options(populate_existing=True)
+        select(Consent).where(Consent.type == "contact").execution_options(populate_existing=True)
     )
     assert record is not None and record.revoked_at is not None
     entry = await db.scalar(select(AuditLog).where(AuditLog.action == "CONSENT_REVOKED"))
@@ -257,7 +255,11 @@ async def test_stats_for_data_governance(client: AsyncClient, db: AsyncSession) 
     assert response.status_code == 200
     stats = {s["type"]: s for s in response.json()}
     assert stats["terms"] == {
-        "type": "terms", "required": True, "active": 2, "revoked": 0, "outdated": 0
+        "type": "terms",
+        "required": True,
+        "active": 2,
+        "revoked": 0,
+        "outdated": 0,
     }
     assert stats["contact"]["active"] == 1 and stats["contact"]["revoked"] == 1
     assert stats["media_sharing"]["active"] == 0

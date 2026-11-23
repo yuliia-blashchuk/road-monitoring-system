@@ -89,9 +89,7 @@ async def missing_consents(
     return [t for t in types if not await has_consent(session, user.id, t)]
 
 
-async def consent_denied(
-    user: User, missing: list[ConsentType], *, endpoint: str
-) -> HTTPException:
+async def consent_denied(user: User, missing: list[ConsentType], *, endpoint: str) -> HTTPException:
     """403 з переліком згод, яких бракує, і запис ACCESS_DENIED в AuditLog."""
     exc = await deny(
         user,

@@ -132,6 +132,7 @@ async def grant_consent(session: AsyncSession, user: User, consent_type: Consent
         new_value={"type": consent_type.value, "version": version},
     )
 
+
 # ---------- «Мої згоди» (KAN-65, п. 3.5) ----------
 
 REQUIRED_CONSENT_REVOKE = (
@@ -198,8 +199,6 @@ async def consent_stats(session: AsyncSession) -> list[ConsentStatsOut]:
     counts = await repo.consent_stats(session, get_settings().consent_version)
     empty = {"active": 0, "revoked": 0, "outdated": 0}
     return [
-        ConsentStatsOut(
-            type=t, required=t in REQUIRED_CONSENTS, **counts.get(t, empty)
-        )
+        ConsentStatsOut(type=t, required=t in REQUIRED_CONSENTS, **counts.get(t, empty))
         for t in ConsentType
     ]
