@@ -2,7 +2,8 @@
 
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select, update
+from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.enums import ConsentType
@@ -50,3 +51,53 @@ async def active_consents(session: AsyncSession, user_id: int) -> list[Consent]:
 
 def touch_last_login(user: User) -> None:
     user.last_login_at = datetime.now(UTC)
+
+
+async def latest_consents(session: AsyncSession, user_id: int) -> dict[ConsentType, Consent]:
+    """Останній запис згоди кожного типу (історія не змінюється, п. 3.5)."""
+    rows = await session.scalars(
+        select(Consent)
+        .where(Consent.user_id == user_id)
+        .order_by(Consent.accepted_at, Consent.id)
+    )
+    return {c.type: c for c in rows}
+
+
+async def revoke_consent(session: AsyncSession, user_id: int, consent_type: ConsentType) -> int:
+    """Заповнює revoked_at усім чинним записам типу. Повертає кількість записів."""
+    result = await session.execute(
+        update(Consent)
+        .where(
+            Consent.user_id == user_id,
+            Consent.type == consent_type,
+            Consent.revoked_at.is_(None),
+        )
+        .values(revoked_at=datetime.now(UTC))
+    )
+    return result.rowcount or 0
+
+
+async def consent_stats(session: AsyncSession, current_version: str) -> dict[ConsentType, dict]:
+    """Скільки водіїв мають чинну, відкликану чи застарілу згоду кожного типу.
+
+    Рахується останній запис кожного користувача (DISTINCT ON), без персональних даних.
+    """
+    latest = (
+        select(Consent.type, Consent.version, Consent.revoked_at)
+        .ext(distinct_on(Consent.user_id, Consent.type))
+        .order_by(Consent.user_id, Consent.type, Consent.accepted_at.desc(), Consent.id.desc())
+        .subquery()
+    )
+    not_revoked = latest.c.revoked_at.is_(None)
+    rows = await session.execute(
+        select(
+            latest.c.type,
+            func.count().filter(not_revoked, latest.c.version == current_version).label("active"),
+            func.count().filter(latest.c.revoked_at.is_not(None)).label("revoked"),
+            func.count().filter(not_revoked, latest.c.version != current_version).label("outdated"),
+        ).group_by(latest.c.type)
+    )
+    return {
+        row.type: {"active": row.active, "revoked": row.revoked, "outdated": row.outdated}
+        for row in rows
+    }
