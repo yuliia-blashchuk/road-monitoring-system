@@ -18,6 +18,8 @@ const typeLabels: Record<RoadEventType, string> = {
   obstacle: 'Перешкода на дорозі',
   roadworks: 'Ремонтні роботи',
   traffic_light: 'Несправний світлофор',
+    damaged_surface: 'Пошкоджене покриття',
+  other: 'Інше',
 }
 
 const statusLabels: Record<RoadEventStatus, string> = {
@@ -25,6 +27,8 @@ const statusLabels: Record<RoadEventStatus, string> = {
   accepted: 'Прийнята',
   in_progress: 'В роботі',
   resolved: 'Усунена',
+    done: 'Виконана',
+  rejected: 'Відхилена',
 }
 
 const statusOrder: RoadEventStatus[] = [

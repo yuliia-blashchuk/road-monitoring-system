@@ -1,15 +1,21 @@
+// Типи й статуси - як у бекенді (problem_type, request.status).
+// roadworks лишився лише для старих демо-даних.
 export type RoadEventType =
   | 'pothole'
+  | 'damaged_surface'
   | 'accident'
   | 'obstacle'
-  | 'roadworks'
   | 'traffic_light'
+  | 'other'
+  | 'roadworks'
 
 export type RoadEventStatus =
   | 'new'
   | 'accepted'
   | 'in_progress'
+  | 'done'
   | 'resolved'
+  | 'rejected'
 
 export interface RoadEvent {
   id: number

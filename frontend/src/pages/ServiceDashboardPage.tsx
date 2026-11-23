@@ -31,6 +31,8 @@ const typeLabels: Record<RoadEventType, string> = {
   obstacle: 'Перешкода',
   roadworks: 'Ремонтні роботи',
   traffic_light: 'Світлофор',
+    damaged_surface: 'Пошкоджене покриття',
+  other: 'Інше',
 }
 
 const statusLabels: Record<ServiceStatus, string> = {
@@ -39,6 +41,7 @@ const statusLabels: Record<ServiceStatus, string> = {
   in_progress: 'В роботі',
   resolved: 'Усунена',
   rejected: 'Відхилена',
+    done: 'Виконана',
 }
 
 const priorityLabels: Record<Priority, string> = {
@@ -172,6 +175,7 @@ function ServiceDashboardPage() {
       new: ['accepted', 'rejected'],
       accepted: ['in_progress', 'rejected'],
       in_progress: ['resolved'],
+            done: ['resolved'],
       resolved: [],
       rejected: [],
     }
