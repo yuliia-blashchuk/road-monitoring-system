@@ -14,9 +14,10 @@ from app.modules.admin.router import router as admin_router
 from app.modules.audit.router import router as audit_router
 from app.modules.dedup.router import router as dedup_router
 from app.modules.notifications.router import router as notifications_router
+from app.modules.reports.read_router import queue_router
+from app.modules.reports.read_router import router as reports_read_router
 from app.modules.reports.router import router as reports_router
 from app.modules.routing.router import router as routing_router
-from app.modules.users.router import consent_router
 from app.modules.users.router import router as users_router
 from app.modules.work_orders.router import router as work_orders_router
 
@@ -54,10 +55,11 @@ async def health_db(session: AsyncSession = Depends(get_session)) -> dict:
 # ніж маршрути /reports/{id}/... з модуля reports.
 for module_router in (
     users_router,
-    consent_router,
     reference_router,
     dedup_router,
     reports_router,
+    reports_read_router,
+    queue_router,
     routing_router,
     work_orders_router,
     notifications_router,
