@@ -1,4 +1,5 @@
 
+import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet'
 import L from 'leaflet'
@@ -52,6 +53,8 @@ function formatDate(date: string): string {
 
 function ReportDetailsPage() {
   const { id } = useParams()
+  // Час відкриття сторінки: Date.now() під час рендеру порушує правило чистоти React.
+  const [now] = useState(() => Date.now())
 
   const report = mapEvents.find(
     (event) => String(event.id) === id
@@ -82,7 +85,6 @@ function ReportDetailsPage() {
     .slice(0, currentStatusIndex + 1)
     .map((status, index) => {
       const created = new Date(report.createdAt).getTime()
-      const now = Date.now()
       const duration = Math.max(0, now - created)
 
       const time =

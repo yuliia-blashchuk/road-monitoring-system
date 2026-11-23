@@ -12,6 +12,8 @@ import {
   useNavigate,
 } from 'react-router'
 
+import SiteFooter from './SiteFooter'
+
 type AppLayoutProps = {
   children: ReactNode
 }
@@ -113,6 +115,7 @@ function AppLayout({ children }: AppLayoutProps) {
         <main className="app-main">
           {children}
         </main>
+        <SiteFooter />
       </div>
     )
   }
@@ -310,6 +313,7 @@ function AppLayout({ children }: AppLayoutProps) {
         <main className="rm-content">
           {children}
         </main>
+        <SiteFooter />
       </div>
     </div>
   )

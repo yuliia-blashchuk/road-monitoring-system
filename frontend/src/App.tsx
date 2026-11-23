@@ -18,8 +18,10 @@ import ReportCreatePage from './pages/ReportCreatePage'
 import ReportDetailsPage from './pages/ReportDetailsPage'
 import ServiceDashboardPage from './pages/ServiceDashboardPage'
 import ContractorDashboardPage from './pages/ContractorDashboardPage'
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
 import { mapEvents, type RoadEventStatus } from './data/mapEvents'
 import AppLayout from './components/AppLayout'
+import CookieBanner from './components/CookieBanner'
 import {
   getCurrentUser,
   loginUser,
@@ -782,7 +784,12 @@ function RegisterPage() {
                 disabled={isLoading}
               />
               <span>
-                Надаю згоду на обробку персональних даних
+                Надаю згоду на обробку персональних даних (
+                <Link to="/privacy" target="_blank" rel="noopener noreferrer">
+                  Політика приватності
+                  <span className="rm-visually-hidden"> (відкриється в новій вкладці)</span>
+                </Link>
+                )
               </span>
             </label>
             {message && (
@@ -942,6 +949,10 @@ function App() {
             element={<RegisterPage />}
           />
           <Route
+            path="/privacy"
+            element={<PrivacyPolicyPage />}
+          />
+          <Route
             path="/report/new"
             element={<ReportCreatePage />}
           />
@@ -1062,6 +1073,7 @@ function App() {
           />
         </Routes>
       </AppLayout>
+      <CookieBanner />
     </BrowserRouter>
   )
 }

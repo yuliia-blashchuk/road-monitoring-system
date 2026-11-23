@@ -4,3 +4,7 @@
 
 - `adr/` — архітектурні рішення (Architecture Decision Records), наприклад «PWA замість нативних застосунків»;
 - діаграми (Use Case, Class, Sequence, ER) у вигляді зображень або вихідних файлів.
+
+Документи:
+
+- [`privacy-gdpr.md`](privacy-gdpr.md) — дані в браузері, банер cookie, відповідність принципам GDPR (KAN-110).
