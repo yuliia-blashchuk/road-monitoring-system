@@ -1,6 +1,6 @@
 """Запити до БД модуля сповіщень."""
 
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.admin.models import Service
@@ -46,3 +46,47 @@ async def add_many(
     session.add_all(items)
     await session.flush()
     return items
+
+
+async def list_for_user(
+    session: AsyncSession, user_id: int, unread_only: bool, limit: int, offset: int
+) -> tuple[list[Notification], int]:
+    query = select(Notification).where(Notification.user_id == user_id)
+    if unread_only:
+        query = query.where(Notification.is_read.is_(False))
+    total = await session.scalar(select(func.count()).select_from(query.subquery()))
+    rows = await session.scalars(
+        query.order_by(Notification.created_at.desc(), Notification.id.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+    return list(rows), total or 0
+
+
+async def count_unread(session: AsyncSession, user_id: int) -> int:
+    return (
+        await session.scalar(
+            select(func.count())
+            .select_from(Notification)
+            .where(Notification.user_id == user_id, Notification.is_read.is_(False))
+        )
+        or 0
+    )
+
+
+async def get_own(session: AsyncSession, notification_id: int, user_id: int) -> Notification | None:
+    """Сповіщення лише цього користувача: чуже повертає None (як «не знайдено»)."""
+    return await session.scalar(
+        select(Notification).where(
+            Notification.id == notification_id, Notification.user_id == user_id
+        )
+    )
+
+
+async def mark_all_read(session: AsyncSession, user_id: int) -> int:
+    result = await session.execute(
+        update(Notification)
+        .where(Notification.user_id == user_id, Notification.is_read.is_(False))
+        .values(is_read=True)
+    )
+    return result.rowcount or 0
