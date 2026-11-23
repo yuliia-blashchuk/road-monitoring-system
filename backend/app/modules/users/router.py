@@ -5,11 +5,18 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, status
 from fastapi.security import OAuth2PasswordRequestForm
 
-from app.core.access_control import access_role, list_permissions
+from app.core.access_control import AccessContext, access_role, list_permissions, require
+from app.core.enums import ConsentType
 from app.modules.admin.schemas import AccessPolicyOut
 from app.modules.users import service
 from app.modules.users.dependencies import CurrentUser, SessionDep
-from app.modules.users.schemas import RegisterRequest, TokenOut, UserOut
+from app.modules.users.schemas import (
+    ConsentStatsOut,
+    ConsentStatusOut,
+    RegisterRequest,
+    TokenOut,
+    UserOut,
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -54,3 +61,50 @@ async def my_permissions(user: CurrentUser, session: SessionDep) -> list:
     """Фронтенд показує лише доступні кнопки. Це зручність, а не захист:
     кожен запит усе одно перевіряється на сервері."""
     return await list_permissions(session, access_role(user))
+
+
+# ---------- «Мої згоди» (KAN-65, п. 3.5) ----------
+
+consent_router = APIRouter(prefix="/consents", tags=["consents"])
+
+ManageOwnConsents = Annotated[AccessContext, Depends(require("consent", "manage"))]
+ViewConsents = Annotated[AccessContext, Depends(require("consent", "view"))]
+
+
+@consent_router.get("/me", response_model=list[ConsentStatusOut], summary="Мої згоди (водій)")
+async def my_consents(ctx: ManageOwnConsents, session: SessionDep) -> list:
+    return await service.my_consents(session, ctx.user)
+
+
+@consent_router.put(
+    "/me/{consent_type}",
+    response_model=list[ConsentStatusOut],
+    summary="Надати згоду (водій)",
+)
+async def grant_consent(
+    consent_type: ConsentType, ctx: ManageOwnConsents, session: SessionDep
+) -> list:
+    """Створює запис згоди актуальної версії тексту; пишеться CONSENT_GRANTED."""
+    return await service.grant_my_consent(session, ctx.user, consent_type)
+
+
+@consent_router.delete(
+    "/me/{consent_type}",
+    response_model=list[ConsentStatusOut],
+    summary="Відкликати згоду (водій)",
+    responses={409: {"description": "Обов'язкову згоду не можна відкликати окремо"}},
+)
+async def revoke_consent(
+    consent_type: ConsentType, ctx: ManageOwnConsents, session: SessionDep
+) -> list:
+    """Заповнює revoked_at; пишеться CONSENT_REVOKED. Діє на наступні передачі даних."""
+    return await service.revoke_my_consent(session, ctx.user, consent_type)
+
+
+@consent_router.get(
+    "/stats",
+    response_model=list[ConsentStatsOut],
+    summary="Статистика згод (Data Governance)",
+)
+async def consent_stats(_: ViewConsents, session: SessionDep) -> list:
+    return await service.consent_stats(session)

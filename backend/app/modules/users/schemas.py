@@ -1,5 +1,7 @@
 """Схеми API модуля users: що приймає реєстрація і що повертають вхід і профіль."""
 
+from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from app.core.enums import REQUIRED_CONSENTS, ConsentType
@@ -62,3 +64,25 @@ class TokenOut(BaseModel):
     token_type: str = "bearer"
     expires_in: int = Field(description="Строк дії токена, с")
     role: str
+
+
+class ConsentStatusOut(BaseModel):
+    """Стан однієї згоди водія для сторінки «Мої згоди» (п. 3.5)."""
+
+    type: ConsentType
+    required: bool = Field(description="Обов'язкова: без неї сервіс недоступний")
+    active: bool = Field(description="Чинна: не відкликана й прийнята актуальна версія тексту")
+    outdated: bool = Field(description="Прийнято стару версію тексту - потрібна повторна згода")
+    version: str | None
+    accepted_at: datetime | None
+    revoked_at: datetime | None
+
+
+class ConsentStatsOut(BaseModel):
+    """Знеособлена статистика згод для Data Governance."""
+
+    type: ConsentType
+    required: bool
+    active: int
+    revoked: int
+    outdated: int

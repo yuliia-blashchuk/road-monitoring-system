@@ -5,12 +5,19 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
-from app.core.enums import ConsentType, RoleCode
+from app.core.enums import REQUIRED_CONSENTS, ConsentType, RoleCode
 from app.core.security import create_access_token, hash_password, verify_password
 from app.modules.audit import service as audit
 from app.modules.users import repository as repo
 from app.modules.users.models import User
-from app.modules.users.schemas import ConsentOut, RegisterRequest, TokenOut, UserOut
+from app.modules.users.schemas import (
+    ConsentOut,
+    ConsentStatsOut,
+    ConsentStatusOut,
+    RegisterRequest,
+    TokenOut,
+    UserOut,
+)
 
 INVALID_CREDENTIALS = "Невірний email або пароль"
 
@@ -124,3 +131,75 @@ async def grant_consent(session: AsyncSession, user: User, consent_type: Consent
         entity_id=consent.id,
         new_value={"type": consent_type.value, "version": version},
     )
+
+# ---------- «Мої згоди» (KAN-65, п. 3.5) ----------
+
+REQUIRED_CONSENT_REVOKE = (
+    "Обов'язкову згоду не можна відкликати окремо: це запит на видалення акаунта (п. 3.7)"
+)
+
+
+async def my_consents(session: AsyncSession, user: User) -> list[ConsentStatusOut]:
+    """Стан усіх п'яти типів згоди: і наданих, і ще не наданих."""
+    version = get_settings().consent_version
+    latest = await repo.latest_consents(session, user.id)
+    result = []
+    for consent_type in ConsentType:
+        c = latest.get(consent_type)
+        not_revoked = c is not None and c.revoked_at is None
+        result.append(
+            ConsentStatusOut(
+                type=consent_type,
+                required=consent_type in REQUIRED_CONSENTS,
+                active=not_revoked and c.version == version,
+                outdated=not_revoked and c.version != version,
+                version=c.version if c else None,
+                accepted_at=c.accepted_at if c else None,
+                revoked_at=c.revoked_at if c else None,
+            )
+        )
+    return result
+
+
+async def grant_my_consent(
+    session: AsyncSession, user: User, consent_type: ConsentType
+) -> list[ConsentStatusOut]:
+    """Надає згоду актуальної версії. Повторний виклик нічого не змінює."""
+    version = get_settings().consent_version
+    current = (await repo.latest_consents(session, user.id)).get(consent_type)
+    if current is None or current.revoked_at is not None or current.version != version:
+        await grant_consent(session, user, consent_type)
+        await session.commit()
+    return await my_consents(session, user)
+
+
+async def revoke_my_consent(
+    session: AsyncSession, user: User, consent_type: ConsentType
+) -> list[ConsentStatusOut]:
+    """Відкликає необов'язкову згоду; діє на наступні передачі даних одразу."""
+    if consent_type in REQUIRED_CONSENTS:
+        raise HTTPException(status.HTTP_409_CONFLICT, REQUIRED_CONSENT_REVOKE)
+    current = (await repo.latest_consents(session, user.id)).get(consent_type)
+    if await repo.revoke_consent(session, user.id, consent_type):
+        audit.record(
+            session,
+            "CONSENT_REVOKED",
+            actor_id=user.id,
+            actor_role=user.role.code,
+            entity_type="consent",
+            entity_id=current.id if current else None,
+            old_value={"type": consent_type.value, "version": current.version if current else None},
+        )
+        await session.commit()
+    return await my_consents(session, user)
+
+
+async def consent_stats(session: AsyncSession) -> list[ConsentStatsOut]:
+    counts = await repo.consent_stats(session, get_settings().consent_version)
+    empty = {"active": 0, "revoked": 0, "outdated": 0}
+    return [
+        ConsentStatsOut(
+            type=t, required=t in REQUIRED_CONSENTS, **counts.get(t, empty)
+        )
+        for t in ConsentType
+    ]
