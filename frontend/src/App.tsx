@@ -19,6 +19,7 @@ import ReportDetailsPage from './pages/ReportDetailsPage'
 import ServiceDashboardPage from './pages/ServiceDashboardPage'
 import ContractorDashboardPage from './pages/ContractorDashboardPage'
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
+import AuditLogPage from './pages/AuditLogPage'
 import { mapEvents, type RoadEventStatus } from './data/mapEvents'
 import AppLayout from './components/AppLayout'
 import CookieBanner from './components/CookieBanner'
@@ -918,6 +919,15 @@ function ProtectedPage({
 function Placeholder({ text }: { text: string }) {
   return <p>{text}</p>
 }
+// KAN-67 — вхід до журналу аудиту з кабінетів адміністратора і Data Governance
+function AuditLink({ text }: { text: string }) {
+  return (
+    <p>
+      {text} <Link to="/audit">Журнал аудиту</Link> — хто, коли й які дані
+      передав, отримав або змінив.
+    </p>
+  )
+}
 const ALL_ROLES = [
   'driver',
   'operator',
@@ -1048,9 +1058,7 @@ function App() {
                 allowedRoles={['admin']}
                 title="Панель адміністратора"
               >
-                <Placeholder
-                  text="Адміністративні функції будуть додані в окремому завданні."
-                />
+                <AuditLink text="Інші адміністративні функції будуть додані окремими завданнями." />
               </ProtectedPage>
             }
           />
@@ -1061,9 +1069,19 @@ function App() {
                 allowedRoles={['data_governance']}
                 title="Data Governance"
               >
-                <Placeholder
-                  text="Робочі інструменти контролю даних будуть додані в окремому завданні."
-                />
+                <AuditLink text="Інструменти контролю даних:" />
+              </ProtectedPage>
+            }
+          />
+          {/* KAN-67 — журнал аудиту, лише адміністратор і Data Governance */}
+          <Route
+            path="/audit"
+            element={
+              <ProtectedPage
+                allowedRoles={['admin', 'data_governance']}
+                title="Журнал аудиту"
+              >
+                <AuditLogPage />
               </ProtectedPage>
             }
           />
