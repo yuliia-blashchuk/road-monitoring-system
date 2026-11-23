@@ -45,37 +45,49 @@ async def _demo_contractor(session) -> Contractor:
     return contractor
 
 
-async def main(password: str) -> None:
-    settings = get_settings()
-    if settings.environment not in {"local", "test", "demo"}:
-        raise SystemExit("Демо-користувачі створюються лише в середовищах local / demo")
-
-    async with SessionLocal() as session:
-        services = {s.name: s for s in (await session.scalars(select(Service))).all()}
-        for email, name, role_code, service_name in DEMO_USERS:
-            if await repo.get_by_email(session, email):
-                print(f"  є      {email}")
-                continue
-            role = await repo.get_role(session, role_code)
-            user = User(
-                email=email,
-                full_name=name,
-                password_hash=hash_password(password),
-                role_id=role.id,
-                service_id=services[service_name].id if service_name else None,
-                contractor_id=(await _demo_contractor(session)).id
-                if role_code == "contractor"
-                else None,
+async def ensure_demo_users(session, password: str) -> dict[str, User]:
+    """Створює відсутні демо-акаунти й повертає всі за email (без commit)."""
+    services = {s.name: s for s in (await session.scalars(select(Service))).all()}
+    users: dict[str, User] = {}
+    for email, name, role_code, service_name in DEMO_USERS:
+        user = await repo.get_by_email(session, email)
+        if user is not None:
+            print(f"  є      {email}")
+            users[email] = user
+            continue
+        role = await repo.get_role(session, role_code)
+        user = User(
+            email=email,
+            full_name=name,
+            password_hash=hash_password(password),
+            role_id=role.id,
+            service_id=services[service_name].id if service_name else None,
+            contractor_id=(await _demo_contractor(session)).id
+            if role_code == "contractor"
+            else None,
+        )
+        await repo.add_user(session, user)
+        if role_code == "driver":
+            await repo.add_consents(
+                session,
+                user,
+                [ConsentType.TERMS, ConsentType.PERSONAL_DATA],
+                get_settings().consent_version,
             )
-            await repo.add_user(session, user)
-            if role_code == "driver":
-                await repo.add_consents(
-                    session,
-                    user,
-                    [ConsentType.TERMS, ConsentType.PERSONAL_DATA],
-                    settings.consent_version,
-                )
-            print(f"  додано {email}  ({role_code})")
+        print(f"  додано {email}  ({role_code})")
+        users[email] = user
+    return users
+
+
+def ensure_allowed_environment() -> None:
+    if get_settings().environment not in {"local", "test", "demo"}:
+        raise SystemExit("Демо-дані створюються лише в середовищах local / demo")
+
+
+async def main(password: str) -> None:
+    ensure_allowed_environment()
+    async with SessionLocal() as session:
+        await ensure_demo_users(session, password)
         await session.commit()
     print(f"Пароль демо-акаунтів: {password}")
 
