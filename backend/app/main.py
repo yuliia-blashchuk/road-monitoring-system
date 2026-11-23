@@ -49,12 +49,14 @@ async def health_db(session: AsyncSession = Depends(get_session)) -> dict:
     return {"status": "ok", "postgis": postgis}
 
 
+# dedup підключається перед reports: шлях /reports/nearby має знайтися раніше,
+# ніж маршрути /reports/{id}/... з модуля reports.
 for module_router in (
     users_router,
     reference_router,
+    dedup_router,
     reports_router,
     routing_router,
-    dedup_router,
     work_orders_router,
     notifications_router,
     audit_router,
