@@ -18,6 +18,7 @@ import ReportCreatePage from './pages/ReportCreatePage'
 
 import ReportDetailsPage from './pages/ReportDetailsPage'
 import MyReportsPage from './pages/MyReportsPage'
+import NotificationsPage from './pages/NotificationsPage'
 import ServiceDashboardPage from './pages/ServiceDashboardPage'
 import ContractorDashboardPage from './pages/ContractorDashboardPage'
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
@@ -999,10 +1000,8 @@ function App() {
                 allowedRoles={ALL_ROLES}
                 title="Сповіщення"
               >
-                <Placeholder
-                  text="Стрічку сповіщень буде реалізовано окремим завданням."
-                />
-              </ProtectedPage>
+                <NotificationsPage />
+                              </ProtectedPage>
             }
           />
           <Route
