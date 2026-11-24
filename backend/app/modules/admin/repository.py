@@ -4,7 +4,7 @@ from sqlalchemy import exists, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
-from app.modules.admin.models import AccessPolicy, CityBoundary, ProblemType, Service
+from app.modules.admin.models import AccessPolicy, CityBoundary, Contractor, ProblemType, Service
 from app.modules.routing.models import RoutingRule
 
 
@@ -55,5 +55,12 @@ async def routing_rules(session: AsyncSession) -> list:
 async def access_policies(session: AsyncSession) -> list[AccessPolicy]:
     rows = await session.scalars(
         select(AccessPolicy).order_by(AccessPolicy.resource, AccessPolicy.action, AccessPolicy.role)
+    )
+    return list(rows)
+
+
+async def active_contractors(session: AsyncSession) -> list[Contractor]:
+    rows = await session.scalars(
+        select(Contractor).where(Contractor.is_active).order_by(Contractor.name)
     )
     return list(rows)
