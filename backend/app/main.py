@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import app.models  # noqa: F401  - реєструє всі моделі та зв'язки між ними
 from app.core.config import get_settings
 from app.core.database import get_session
+from app.core.openapi import install as install_openapi
 from app.core.request_context import RequestContextMiddleware
 from app.modules.admin.router import public_router as reference_router
 from app.modules.admin.router import router as admin_router
@@ -39,13 +40,13 @@ app.add_middleware(RequestContextMiddleware)
 api = APIRouter(prefix=settings.api_prefix)
 
 
-@api.get("/health", tags=["system"])
+@api.get("/health", tags=["system"], summary="Перевірка роботи API")
 async def health() -> dict:
     """Перевірка, що API живий."""
     return {"status": "ok"}
 
 
-@api.get("/health/db", tags=["system"])
+@api.get("/health/db", tags=["system"], summary="Перевірка зв'язку з БД і PostGIS")
 async def health_db(session: AsyncSession = Depends(get_session)) -> dict:
     """Перевірка, що API бачить базу даних і PostGIS."""
     postgis = (await session.execute(text("SELECT postgis_version()"))).scalar_one()
@@ -71,3 +72,4 @@ for module_router in (
     api.include_router(module_router)
 
 app.include_router(api)
+install_openapi(app)
