@@ -86,8 +86,11 @@ def test_final_statuses_have_no_exits() -> None:
 
 def test_next_statuses_for_role() -> None:
     assert next_statuses(S.NEW, DISPATCHER) == [S.ACCEPTED, S.REJECTED]
-    assert next_statuses(S.IN_PROGRESS, CONTRACTOR) == [S.DONE]
+    # «Виконана» - не кнопка PATCH, а здача робіт з актом (KAN-121).
+    assert next_statuses(S.IN_PROGRESS, CONTRACTOR) == []
     assert next_statuses(S.IN_PROGRESS, DISPATCHER) == [S.RESOLVED]
+    # Без ролі - усі переходи життєвого циклу (для підказки в помилці 409).
+    assert S.DONE in next_statuses(S.IN_PROGRESS)
 
 
 def test_every_status_has_label() -> None:

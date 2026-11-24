@@ -21,6 +21,7 @@ from app.modules.reports.models import Request, StatusHistory
 from app.modules.routing.models import RoutingRule
 from app.modules.users.models import User
 from tests.factories import auth, make_contractor, make_driver, make_staff
+from tests.test_reports_status import submit_work
 
 URL = "/api/v1/reports"
 WEST = "Комунальна служба Залізничного району (демо)"
@@ -57,6 +58,10 @@ ALLOWED = {
 }
 INVALID = [(s, t) for s in STATUSES for t in STATUSES if (s, t) not in ALLOWED]
 
+# Переходи, які роблять не через PATCH /status, а окремою дією (KAN-121):
+# «Виконана» - здача робіт з прогресом 100 %, фото «після» й актом.
+WORK_ORDER_ONLY = {("in_progress", "done")}
+
 # Як довести заявку до потрібного статусу: (хто, статус).
 PATHS = {
     "new": [],
@@ -68,7 +73,7 @@ PATHS = {
         ("dispatcher", "in_progress"),
         ("dispatcher", "resolved"),
     ],
-    "done": [("dispatcher", "accepted"), ("contractor", "in_progress"), ("contractor", "done")],
+    "done": [("dispatcher", "accepted"), ("contractor", "in_progress"), ("contractor", "submit")],
 }
 
 _emails = count(1)
@@ -140,7 +145,10 @@ async def report_in_status(
     for role, target in PATHS[status]:
         if role == "contractor":
             await assign_contractor(db, actors, report_id)
-        step = await patch(client, actors.by_role[role], report_id, target)
+        if target == "submit":
+            step = await submit_work(client, actors.by_role[role], report_id)
+        else:
+            step = await patch(client, actors.by_role[role], report_id, target)
         assert step.status_code == 200, step.text
     return report_id
 
@@ -245,9 +253,18 @@ async def test_allowed_transition(
     role = ALLOWED[(current, target)]
     if role == "contractor":
         await assign_contractor(db, actors, report_id)
-    response = await patch(client, actors.by_role[role], report_id, target)
-    assert response.status_code == 200, response.text
-    assert (response.json()["previous_status"], response.json()["status"]) == (current, target)
+    if (current, target) in WORK_ORDER_ONLY:
+        # «Виконана» - здача робіт з фото «після» й актом (KAN-121).
+        response = await submit_work(client, actors.by_role[role], report_id)
+        assert response.status_code == 200, response.text
+        assert response.json()["status"] == target
+    else:
+        response = await patch(client, actors.by_role[role], report_id, target)
+        assert response.status_code == 200, response.text
+        assert (response.json()["previous_status"], response.json()["status"]) == (
+            current,
+            target,
+        )
 
     request = await fresh(db, report_id)
     assert request.status == target
@@ -325,6 +342,27 @@ async def test_transition_wrong_role(
     denied = await db.scalar(select(AuditLog).where(AuditLog.action == "ACCESS_DENIED"))
     assert denied.entity_id == report_id
     assert denied.new_value["reason"] == f"transition:{current}->{target}"
+
+
+async def test_done_only_by_work_submission(client: AsyncClient, db: AsyncSession) -> None:
+    """TC-API-11 (KAN-121): «Виконана» через PATCH - 409 з підказкою; лише здача робіт з актом."""
+    actors = await Actors.create(db)
+    report_id = await report_in_status(client, db, actors, "in_progress")
+    contractor = actors.by_role["contractor"]
+    await assign_contractor(db, actors, report_id)
+    audit_before = await status_changes(db, report_id)
+
+    response = await patch(client, contractor, report_id, "done")
+    assert response.status_code == 409
+    assert response.json()["detail"] == (
+        "Статус «Виконана» ставиться під час здачі робіт: вкажіть прогрес 100 % "
+        "і додайте фото «після» та акт виконаних робіт"
+    )
+    assert (await fresh(db, report_id)).status == "in_progress"
+    assert await status_changes(db, report_id) == audit_before
+
+    card = await client.get(f"{URL}/{report_id}", headers=auth(contractor))
+    assert "done" not in card.json()["next_statuses"]
 
 
 async def test_resolve_before_contractor_done(client: AsyncClient, db: AsyncSession) -> None:
