@@ -1,5 +1,5 @@
-
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router'
 import {
   MapContainer,
   TileLayer,
@@ -7,69 +7,59 @@ import {
   Popup,
 } from 'react-leaflet'
 
+import type { RoadEventStatus } from '../data/mapEvents'
 import {
-  mapEvents,
-  type RoadEvent,
-  type RoadEventStatus,
-  type RoadEventType,
-} from '../data/mapEvents'
+  changeStatus,
+  getQueue,
+  type Priority,
+  type QueueItem,
+} from '../services/roadmapApi'
 
 import 'leaflet/dist/leaflet.css'
 import './ServiceDashboardPage.css'
 
-type ServiceStatus = RoadEventStatus | 'rejected'
-type Priority = 'high' | 'medium' | 'low'
+const ALL_STATUSES: RoadEventStatus[] = [
+  'new',
+  'accepted',
+  'in_progress',
+  'done',
+  'resolved',
+  'rejected',
+]
 
-type ReportUpdate = {
-  status: ServiceStatus
-  reason?: string
-}
-
-const typeLabels: Record<RoadEventType, string> = {
-  pothole: 'Пошкодження дороги',
-  accident: 'Аварія',
-  obstacle: 'Перешкода',
-  roadworks: 'Ремонтні роботи',
-  traffic_light: 'Світлофор',
-}
-
-const statusLabels: Record<ServiceStatus, string> = {
+const statusLabels: Record<RoadEventStatus, string> = {
   new: 'Нова',
   accepted: 'Прийнята',
   in_progress: 'В роботі',
+  done: 'Виконана',
   resolved: 'Усунена',
   rejected: 'Відхилена',
 }
 
 const priorityLabels: Record<Priority, string> = {
+  critical: 'Критичний',
   high: 'Високий',
   medium: 'Середній',
   low: 'Низький',
 }
 
 const priorityOrder: Record<Priority, number> = {
-  high: 0,
-  medium: 1,
-  low: 2,
+  critical: 0,
+  high: 1,
+  medium: 2,
+  low: 3,
 }
 
-// Демонстраційне визначення пріоритету.
-function getPriority(report: RoadEvent): Priority {
-  if (
-    report.type === 'accident' ||
-    report.type === 'traffic_light'
-  ) {
-    return 'high'
-  }
+// Текст кнопки для кожного переходу (крім відхилення - для нього окрема форма)
+const actionLabels: Partial<Record<RoadEventStatus, string>> = {
+  accepted: 'Прийняти заявку',
+  in_progress: 'Почати роботи',
+  resolved: 'Позначити як усунену',
+}
 
-  if (
-    report.type === 'pothole' ||
-    report.type === 'obstacle'
-  ) {
-    return 'medium'
-  }
-
-  return 'low'
+// Для critical окремого стилю немає - показуємо як high
+function priorityClass(priority: Priority): string {
+  return priority === 'critical' ? 'high' : priority
 }
 
 function formatDate(value: string): string {
@@ -81,147 +71,169 @@ function formatDate(value: string): string {
 }
 
 function ServiceDashboardPage() {
-  const [updates, setUpdates] = useState<
-    Record<number, ReportUpdate>
-  >({})
+  // Черга служби з бекенду (GET /queue): лише заявки своєї служби й копії
+  const [reports, setReports] = useState<QueueItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
 
-  const [selectedId, setSelectedId] = useState<number>(
-    mapEvents[0]?.id ?? 0
-  )
+  const [selectedId, setSelectedId] = useState<number | null>(null)
 
   const [typeFilter, setTypeFilter] = useState('all')
-  const [statusFilter, setStatusFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('open')
   const [priorityFilter, setPriorityFilter] = useState('all')
   const [sortBy, setSortBy] = useState('priority')
 
+  const [comment, setComment] = useState('')
+  const [deadline, setDeadline] = useState('')
   const [rejectReason, setRejectReason] = useState('')
-  const [showRejectForm, setShowRejectForm] =
-    useState(false)
+  const [showRejectForm, setShowRejectForm] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
 
-  function getStatus(report: RoadEvent): ServiceStatus {
-    return updates[report.id]?.status ?? report.status
-  }
+  // Лічильник оновлень: після зміни статусу збільшуємо його, і черга завантажується знову
+  const [reloadKey, setReloadKey] = useState(0)
+
+  useEffect(() => {
+    let cancelled = false
+    getQueue(ALL_STATUSES, 100)
+      .then((page) => {
+        if (!cancelled) {
+          setReports(page.items)
+          setLoadError('')
+        }
+      })
+      .catch((reason: Error) => {
+        if (!cancelled) setLoadError(reason.message)
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [reloadKey])
+
+  // Типи проблем, які є в черзі служби
+  const typeOptions = useMemo(() => {
+    const options = new Map<string, string>()
+    reports.forEach((report) =>
+      options.set(report.problem_type, report.problem_label)
+    )
+    return [...options.entries()]
+  }, [reports])
 
   const filteredReports = useMemo(() => {
-    const result = mapEvents.filter((report) => {
-      const status = getStatus(report)
-      const priority = getPriority(report)
-
+    const result = reports.filter((report) => {
+      const isOpen = !['resolved', 'rejected'].includes(report.status)
       return (
-        (typeFilter === 'all' ||
-          report.type === typeFilter) &&
+        (typeFilter === 'all' || report.problem_type === typeFilter) &&
         (statusFilter === 'all' ||
-          status === statusFilter) &&
-        (priorityFilter === 'all' ||
-          priority === priorityFilter)
+          (statusFilter === 'open' && isOpen) ||
+          report.status === statusFilter) &&
+        (priorityFilter === 'all' || report.priority === priorityFilter)
       )
     })
 
     result.sort((a, b) => {
       if (sortBy === 'priority') {
         const difference =
-          priorityOrder[getPriority(a)] -
-          priorityOrder[getPriority(b)]
-
+          priorityOrder[a.priority] - priorityOrder[b.priority]
         if (difference !== 0) return difference
+        return (
+          new Date(a.created_at).getTime() -
+          new Date(b.created_at).getTime()
+        )
       }
 
       if (sortBy === 'oldest') {
         return (
-          new Date(a.createdAt).getTime() -
-          new Date(b.createdAt).getTime()
+          new Date(a.created_at).getTime() -
+          new Date(b.created_at).getTime()
         )
       }
 
       return (
-        new Date(b.createdAt).getTime() -
-        new Date(a.createdAt).getTime()
+        new Date(b.created_at).getTime() -
+        new Date(a.created_at).getTime()
       )
     })
 
     return result
-  }, [
-    updates,
-    typeFilter,
-    statusFilter,
-    priorityFilter,
-    sortBy,
-  ])
+  }, [reports, typeFilter, statusFilter, priorityFilter, sortBy])
 
   const selectedReport =
-  filteredReports.find((report) => report.id === selectedId) ??
-  filteredReports[0]
+    filteredReports.find((report) => report.id === selectedId) ??
+    filteredReports[0]
 
-  function selectReport(id: number) {
-    setSelectedId(id)
+  function clearForm() {
     setShowRejectForm(false)
     setRejectReason('')
+    setComment('')
+    setDeadline('')
     setError('')
   }
 
-  function changeStatus(status: ServiceStatus) {
+  function selectReport(id: number) {
+    setSelectedId(id)
+    setMessage('')
+    clearForm()
+  }
+
+  // Зміна статусу через бекенд (PATCH /reports/{id}/status): правила переходів
+  // перевіряє сервер, а водій отримує сповіщення
+  async function submitStatus(status: RoadEventStatus) {
     if (!selectedReport) return
-
-    const currentStatus = getStatus(selectedReport)
-
-    const allowedTransitions: Record<
-      ServiceStatus,
-      ServiceStatus[]
-    > = {
-      new: ['accepted', 'rejected'],
-      accepted: ['in_progress', 'rejected'],
-      in_progress: ['resolved'],
-      resolved: [],
-      rejected: [],
-    }
-
-    if (!allowedTransitions[currentStatus].includes(status)) {
-      setError('Такий перехід статусу недоступний.')
-      return
-    }
 
     if (status === 'rejected' && !rejectReason.trim()) {
       setError('Вкажіть причину відхилення заявки.')
       return
     }
 
-    setUpdates((previous) => ({
-      ...previous,
-      [selectedReport.id]: {
-        status,
-        reason:
-          status === 'rejected'
-            ? rejectReason.trim()
-            : undefined,
-      },
-    }))
-
+    setSaving(true)
     setError('')
-    setShowRejectForm(false)
-    setRejectReason('')
+    setMessage('')
+    try {
+      await changeStatus(selectedReport.id, {
+        status,
+        comment: comment.trim() || undefined,
+        reject_reason: status === 'rejected' ? rejectReason.trim() : undefined,
+        // Поле дати дає рядок YYYY-MM-DD; строк має сенс лише при прийнятті чи початку робіт
+        deadline:
+          /^\d{4}-\d{2}-\d{2}$/.test(deadline) &&
+          (status === 'accepted' || status === 'in_progress')
+            ? deadline
+            : undefined,
+      })
+      setSelectedId(selectedReport.id)
+      clearForm()
+      setMessage(
+        `Статус заявки №${selectedReport.number} змінено на «${statusLabels[status]}». ` +
+          'Водій отримав сповіщення.'
+      )
+      setReloadKey((key) => key + 1)
+    } catch (reason) {
+      setError((reason as Error).message)
+    } finally {
+      setSaving(false)
+    }
   }
 
-  const total = mapEvents.length
-
-  const newCount = mapEvents.filter(
-    (report) => getStatus(report) === 'new'
+  const openReports = reports.filter(
+    (report) => !['resolved', 'rejected'].includes(report.status)
+  )
+  const total = openReports.length
+  const newCount = openReports.filter((report) => report.status === 'new').length
+  const activeCount = openReports.filter((report) =>
+    ['accepted', 'in_progress', 'done'].includes(report.status)
+  ).length
+  const highCount = openReports.filter((report) =>
+    ['critical', 'high'].includes(report.priority)
   ).length
 
-  const activeCount = mapEvents.filter((report) =>
-    ['accepted', 'in_progress'].includes(getStatus(report))
-  ).length
-
-  const highCount = mapEvents.filter(
-    (report) =>
-      getPriority(report) === 'high' &&
-      getStatus(report) !== 'resolved' &&
-      getStatus(report) !== 'rejected'
-  ).length
-
-  const currentStatus = selectedReport
-    ? getStatus(selectedReport)
-    : 'new'
+  const nextStatuses = selectedReport?.next_statuses ?? []
+  const canSetDeadline =
+    nextStatuses.includes('accepted') || nextStatuses.includes('in_progress')
 
   return (
     <div className="rm-service-page">
@@ -233,26 +245,30 @@ function ServiceDashboardPage() {
 
           <h1>Кабінет дорожньої служби</h1>
           <p>
-            Перегляд і опрацювання дорожніх заявок.
+            Перегляд і опрацювання дорожніх заявок вашої служби.
           </p>
         </div>
 
         <span className="rm-service-demo">
-          Демонстраційний режим
+          Дані з бази RoadMap
         </span>
       </div>
 
-      <div className="rm-service-notice">
-        Тут використовуються демонстраційні дані RoadMap.
-        Зміни статусів не надсилаються на сервер і
-        скидаються після оновлення сторінки.
-      </div>
+      {loading && (
+        <div className="rm-service-notice">Завантаження черги заявок…</div>
+      )}
+
+      {loadError && (
+        <div className="rm-service-notice" role="alert">
+          {loadError}
+        </div>
+      )}
 
       <div className="rm-service-stats">
         <div className="rm-service-stat">
-          <span>Усього заявок</span>
+          <span>Відкриті заявки</span>
           <strong>{total}</strong>
-          <small>У демонстраційній черзі</small>
+          <small>У черзі вашої служби</small>
         </div>
 
         <div className="rm-service-stat">
@@ -264,13 +280,13 @@ function ServiceDashboardPage() {
         <div className="rm-service-stat">
           <span>В опрацюванні</span>
           <strong>{activeCount}</strong>
-          <small>Прийняті та в роботі</small>
+          <small>Прийняті, в роботі, виконані</small>
         </div>
 
         <div className="rm-service-stat">
           <span>Високий пріоритет</span>
           <strong>{highCount}</strong>
-          <small>Активні заявки</small>
+          <small>Критичні та високі</small>
         </div>
       </div>
 
@@ -282,7 +298,7 @@ function ServiceDashboardPage() {
           </div>
 
           <span className="rm-service-count">
-            {filteredReports.length} із {total}
+            {filteredReports.length} із {reports.length}
           </span>
         </div>
 
@@ -291,18 +307,14 @@ function ServiceDashboardPage() {
             Тип проблеми
             <select
               value={typeFilter}
-              onChange={(event) =>
-                setTypeFilter(event.target.value)
-              }
+              onChange={(event) => setTypeFilter(event.target.value)}
             >
               <option value="all">Усі категорії</option>
-              {Object.entries(typeLabels).map(
-                ([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                )
-              )}
+              {typeOptions.map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
             </select>
           </label>
 
@@ -310,18 +322,15 @@ function ServiceDashboardPage() {
             Статус
             <select
               value={statusFilter}
-              onChange={(event) =>
-                setStatusFilter(event.target.value)
-              }
+              onChange={(event) => setStatusFilter(event.target.value)}
             >
+              <option value="open">Відкриті</option>
               <option value="all">Усі статуси</option>
-              {Object.entries(statusLabels).map(
-                ([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                )
-              )}
+              {ALL_STATUSES.map((status) => (
+                <option key={status} value={status}>
+                  {statusLabels[status]}
+                </option>
+              ))}
             </select>
           </label>
 
@@ -329,18 +338,14 @@ function ServiceDashboardPage() {
             Пріоритет
             <select
               value={priorityFilter}
-              onChange={(event) =>
-                setPriorityFilter(event.target.value)
-              }
+              onChange={(event) => setPriorityFilter(event.target.value)}
             >
               <option value="all">Усі пріоритети</option>
-              {Object.entries(priorityLabels).map(
-                ([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                )
-              )}
+              {Object.entries(priorityLabels).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
             </select>
           </label>
 
@@ -348,19 +353,11 @@ function ServiceDashboardPage() {
             Сортування
             <select
               value={sortBy}
-              onChange={(event) =>
-                setSortBy(event.target.value)
-              }
+              onChange={(event) => setSortBy(event.target.value)}
             >
-              <option value="priority">
-                За пріоритетом
-              </option>
-              <option value="newest">
-                Спочатку новіші
-              </option>
-              <option value="oldest">
-                Спочатку старіші
-              </option>
+              <option value="priority">За пріоритетом</option>
+              <option value="newest">Спочатку новіші</option>
+              <option value="oldest">Спочатку старіші</option>
             </select>
           </label>
 
@@ -369,7 +366,7 @@ function ServiceDashboardPage() {
             className="rm-service-reset"
             onClick={() => {
               setTypeFilter('all')
-              setStatusFilter('all')
+              setStatusFilter('open')
               setPriorityFilter('all')
               setSortBy('priority')
             }}
@@ -392,61 +389,51 @@ function ServiceDashboardPage() {
             </thead>
 
             <tbody>
-              {filteredReports.map((report) => {
-                const status = getStatus(report)
-                const priority = getPriority(report)
-
-                return (
-                  <tr
-                    key={report.id}
-                    className={
-                    selectedReport?.id === report.id
-                         ? 'selected'
-                         : ''
-                    }
-                    onClick={() => selectReport(report.id)}
-                  >
-                    <td>#{report.id}</td>
-                    <td>
-                      <button
-                        type="button"
-                        className="rm-service-row-link"
-                        onClick={() =>
-                          selectReport(report.id)
-                        }
-                      >
-                        {report.title}
-                      </button>
-                    </td>
-                    <td>{report.address}</td>
-                    <td>
-                      <span
-                        className={
-                          `rm-service-priority ` +
-                          `rm-service-priority--${priority}`
-                        }
-                      >
-                        {priorityLabels[priority]}
-                      </span>
-                    </td>
-                    <td>
-                      <span
-                        className={
-                          `rm-service-status ` +
-                          `rm-service-status--${status}`
-                        }
-                      >
-                        {statusLabels[status]}
-                      </span>
-                    </td>
-                    <td>{formatDate(report.createdAt)}</td>
-                  </tr>
-                )
-              })}
+              {filteredReports.map((report) => (
+                <tr
+                  key={report.id}
+                  className={selectedReport?.id === report.id ? 'selected' : ''}
+                  onClick={() => selectReport(report.id)}
+                >
+                  <td>№{report.number}</td>
+                  <td>
+                    <button
+                      type="button"
+                      className="rm-service-row-link"
+                      onClick={() => selectReport(report.id)}
+                    >
+                      {report.problem_label}
+                      {report.is_copy ? ' (копія)' : ''}
+                    </button>
+                  </td>
+                  <td>{report.address ?? 'Адресу не вказано'}</td>
+                  <td>
+                    <span
+                      className={
+                        `rm-service-priority ` +
+                        `rm-service-priority--${priorityClass(report.priority)}`
+                      }
+                    >
+                      {priorityLabels[report.priority]}
+                    </span>
+                  </td>
+                  <td>
+                    <span
+                      className={
+                        `rm-service-status ` +
+                        `rm-service-status--${report.status}`
+                      }
+                    >
+                      {statusLabels[report.status]}
+                    </span>
+                  </td>
+                  <td>{formatDate(report.created_at)}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
 
-          {filteredReports.length === 0 && (
+          {!loading && filteredReports.length === 0 && (
             <p className="rm-service-empty">
               За вибраними фільтрами заявок немає.
             </p>
@@ -454,87 +441,138 @@ function ServiceDashboardPage() {
         </div>
       </section>
 
+      {message && (
+        <p className="rm-service-complete" role="status">
+          {message}
+        </p>
+      )}
+
       {selectedReport && (
         <div className="rm-service-details-grid">
           <section className="rm-service-card">
             <div className="rm-service-section-heading">
               <div>
-                <h2>Заявка №{selectedReport.id}</h2>
-                <p>{selectedReport.title}</p>
+                <h2>Заявка №{selectedReport.number}</h2>
+                <p>
+                  {selectedReport.problem_label}
+                  {selectedReport.is_copy
+                    ? ' · ваша служба отримала копію'
+                    : ''}
+                </p>
               </div>
 
               <span
                 className={
                   `rm-service-status ` +
-                  `rm-service-status--${currentStatus}`
+                  `rm-service-status--${selectedReport.status}`
                 }
               >
-                {statusLabels[currentStatus]}
+                {statusLabels[selectedReport.status]}
               </span>
             </div>
 
             <div className="rm-service-detail-list">
               <div>
-                <span>Тип проблеми</span>
-                <strong>
-                  {typeLabels[selectedReport.type]}
-                </strong>
-              </div>
-
-              <div>
                 <span>Адреса</span>
-                <strong>{selectedReport.address}</strong>
+                <strong>{selectedReport.address ?? 'Адресу не вказано'}</strong>
               </div>
 
               <div>
                 <span>Пріоритет</span>
-                <strong>
-                  {priorityLabels[getPriority(selectedReport)]}
-                </strong>
+                <strong>{priorityLabels[selectedReport.priority]}</strong>
+              </div>
+
+              <div>
+                <span>Автор</span>
+                <strong>{selectedReport.author ?? '—'}</strong>
+              </div>
+
+              <div>
+                <span>Підтверджень «Теж бачу»</span>
+                <strong>{selectedReport.confirmations_count}</strong>
               </div>
 
               <div>
                 <span>Дата створення</span>
-                <strong>
-                  {formatDate(selectedReport.createdAt)}
-                </strong>
+                <strong>{formatDate(selectedReport.created_at)}</strong>
               </div>
+
+              {selectedReport.deadline && (
+                <div>
+                  <span>Орієнтовний строк</span>
+                  <strong>{formatDate(selectedReport.deadline)}</strong>
+                </div>
+              )}
+
+              {selectedReport.progress_percent != null && (
+                <div>
+                  <span>Прогрес підрядника</span>
+                  <strong>{selectedReport.progress_percent} %</strong>
+                </div>
+              )}
+
+              {selectedReport.comment && (
+                <div>
+                  <span>Коментар водія</span>
+                  <strong>{selectedReport.comment}</strong>
+                </div>
+              )}
             </div>
+
+            <p>
+              <Link to={`/reports/${selectedReport.id}`}>
+                Відкрити повну картку з фото та історією →
+              </Link>
+            </p>
 
             <h3>Опрацювання заявки</h3>
 
+            {nextStatuses.length > 0 && !showRejectForm && (
+              <div className="rm-service-reject-form">
+                <label htmlFor="service-comment">
+                  Коментар для водія (необов'язково)
+                </label>
+                <textarea
+                  id="service-comment"
+                  rows={2}
+                  maxLength={300}
+                  value={comment}
+                  onChange={(event) => setComment(event.target.value)}
+                  placeholder="Наприклад: бригада виїде протягом 3 днів"
+                />
+
+                {canSetDeadline && (
+                  <>
+                    <label htmlFor="service-deadline">
+                      Орієнтовний строк (необов'язково)
+                    </label>
+                    <input
+                      id="service-deadline"
+                      type="date"
+                      value={deadline}
+                      onChange={(event) => setDeadline(event.target.value)}
+                    />
+                  </>
+                )}
+              </div>
+            )}
+
             <div className="rm-service-actions">
-              {currentStatus === 'new' && (
-                <button
-                  type="button"
-                  onClick={() => changeStatus('accepted')}
-                  className="rm-service-primary"
-                >
-                  Прийняти заявку
-                </button>
-              )}
+              {nextStatuses
+                .filter((status) => status !== 'rejected' && actionLabels[status])
+                .map((status) => (
+                  <button
+                    key={status}
+                    type="button"
+                    onClick={() => submitStatus(status)}
+                    className="rm-service-primary"
+                    disabled={saving}
+                  >
+                    {actionLabels[status]}
+                  </button>
+                ))}
 
-              {currentStatus === 'accepted' && (
-                <button
-                  type="button"
-                  onClick={() => changeStatus('in_progress')}
-                  className="rm-service-primary"
-                >
-                  Почати роботи
-                </button>
-              )}
-
-              {currentStatus === 'in_progress' && (
-                <button
-                  type="button"
-                  onClick={() => changeStatus('resolved')}
-                  className="rm-service-primary"
-                >
-                  Позначити як усунену
-                </button>
-              )}
-
-              {['new', 'accepted'].includes(currentStatus) && (
+              {nextStatuses.includes('rejected') && !showRejectForm && (
                 <button
                   type="button"
                   className="rm-service-danger"
@@ -557,18 +595,18 @@ function ServiceDashboardPage() {
                 <textarea
                   id="service-reject-reason"
                   rows={3}
+                  maxLength={300}
                   value={rejectReason}
-                  onChange={(event) =>
-                    setRejectReason(event.target.value)
-                  }
-                  placeholder="Поясніть, чому заявка відхиляється..."
+                  onChange={(event) => setRejectReason(event.target.value)}
+                  placeholder="Наприклад: не підтверджено на місці"
                 />
 
                 <div className="rm-service-actions">
                   <button
                     type="button"
                     className="rm-service-danger"
-                    onClick={() => changeStatus('rejected')}
+                    onClick={() => submitStatus('rejected')}
+                    disabled={saving}
                   >
                     Підтвердити відхилення
                   </button>
@@ -576,11 +614,7 @@ function ServiceDashboardPage() {
                   <button
                     type="button"
                     className="rm-service-reset"
-                    onClick={() => {
-                      setShowRejectForm(false)
-                      setRejectReason('')
-                      setError('')
-                    }}
+                    onClick={clearForm}
                   >
                     Скасувати
                   </button>
@@ -594,14 +628,14 @@ function ServiceDashboardPage() {
               </p>
             )}
 
-            {updates[selectedReport.id]?.reason && (
-              <div className="rm-service-rejection-note">
-                <strong>Причина відхилення:</strong>
-                <p>{updates[selectedReport.id].reason}</p>
-              </div>
+            {selectedReport.status === 'done' && (
+              <p className="rm-service-complete">
+                Підрядник здав роботи. Перевірте фото «після» в повній картці
+                й позначте заявку як усунену.
+              </p>
             )}
 
-            {['resolved', 'rejected'].includes(currentStatus) && (
+            {['resolved', 'rejected'].includes(selectedReport.status) && (
               <p className="rm-service-complete">
                 Опрацювання заявки завершено.
               </p>
@@ -614,10 +648,7 @@ function ServiceDashboardPage() {
             <div className="rm-service-map">
               <MapContainer
                 key={selectedReport.id}
-                center={[
-                  selectedReport.lat,
-                  selectedReport.lng,
-                ]}
+                center={[selectedReport.lat, selectedReport.lng]}
                 zoom={16}
                 scrollWheelZoom
                 style={{ height: '340px', width: '100%' }}
@@ -628,10 +659,7 @@ function ServiceDashboardPage() {
                 />
 
                 <CircleMarker
-                  center={[
-                    selectedReport.lat,
-                    selectedReport.lng,
-                  ]}
+                  center={[selectedReport.lat, selectedReport.lng]}
                   radius={11}
                   pathOptions={{
                     color: '#ffffff',
@@ -641,8 +669,10 @@ function ServiceDashboardPage() {
                   }}
                 >
                   <Popup>
-                    <strong>{selectedReport.title}</strong>
-                    <p>{selectedReport.address}</p>
+                    <strong>
+                      {selectedReport.problem_label} №{selectedReport.number}
+                    </strong>
+                    <p>{selectedReport.address ?? 'Адресу не вказано'}</p>
                   </Popup>
                 </CircleMarker>
               </MapContainer>

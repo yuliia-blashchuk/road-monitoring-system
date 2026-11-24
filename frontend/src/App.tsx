@@ -15,12 +15,17 @@ import {
 } from 'react-router'
 import RoadMapMap from './components/RoadMapMap'
 import ReportCreatePage from './pages/ReportCreatePage'
+
 import ReportDetailsPage from './pages/ReportDetailsPage'
+import MyReportsPage from './pages/MyReportsPage'
+import NotificationsPage from './pages/NotificationsPage'
+import AdminDashboardPage from './pages/AdminDashboardPage'
 import ServiceDashboardPage from './pages/ServiceDashboardPage'
 import ContractorDashboardPage from './pages/ContractorDashboardPage'
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
 import AuditLogPage from './pages/AuditLogPage'
-import { mapEvents, type RoadEventStatus } from './data/mapEvents'
+import { type RoadEventStatus } from './data/mapEvents'
+import { useRoadEvents } from './services/useRoadEvents'
 import AppLayout from './components/AppLayout'
 import CookieBanner from './components/CookieBanner'
 import {
@@ -59,7 +64,9 @@ const EVENT_STATUS: Record<
   new: { label: 'Нова', className: 'new' },
   accepted: { label: 'Прийнята', className: 'accepted' },
   in_progress: { label: 'В роботі', className: 'progress' },
+  done: { label: 'Виконана', className: 'resolved' },
   resolved: { label: 'Усунена', className: 'resolved' },
+  rejected: { label: 'Відхилена', className: 'new' },
 }
 // Картка статистики
 function StatCard({
@@ -89,12 +96,16 @@ function StatCard({
   )
 }
 // Головна сторінка з картою у стилі Figma
+// Головна сторінка з картою у стилі Figma
 function MapPage() {
   const [searchParams] = useSearchParams()
   const searchQuery = (searchParams.get('q') ?? '')
     .trim()
     .toLocaleLowerCase('uk')
-  // Статистика за демонстраційними даними
+  // Заявки з бази (GET /reports): лише незакриті - усунені й відхилені
+  // з карти прибираються (БП-4)
+  const { events: mapEvents, loading, error } = useRoadEvents()
+  // Статистика
   const total = mapEvents.length
   const newCount = mapEvents.filter(
     (event) => event.status === 'new'
@@ -105,8 +116,8 @@ function MapPage() {
   const progressCount = mapEvents.filter(
     (event) => event.status === 'in_progress'
   ).length
-  const resolvedCount = mapEvents.filter(
-    (event) => event.status === 'resolved'
+  const doneCount = mapEvents.filter(
+    (event) => event.status === 'done'
   ).length
   // Діаграма статусів
   const scale = total || 1
@@ -126,9 +137,9 @@ function MapPage() {
   // Дані графіка за категоріями
   const types = [
     { code: 'pothole', name: 'Ями' },
+    { code: 'damaged_surface', name: 'Покриття' },
     { code: 'accident', name: 'ДТП' },
     { code: 'obstacle', name: 'Перешкоди' },
-    { code: 'roadworks', name: 'Ремонти' },
     { code: 'traffic_light', name: 'Світлофори' },
   ]
   const typeCounts = types.map(
@@ -136,13 +147,16 @@ function MapPage() {
       mapEvents.filter((event) => event.type === type.code)
         .length
   )
+  // Висота точки графіка: найбільша категорія - угорі (y = 24), нуль - внизу (y = 90)
+  const maxCount = Math.max(1, ...typeCounts)
+  const pointY = (count: number) => 90 - (count / maxCount) * 66
   const linePoints = typeCounts
     .map(
       (count, index) =>
-        `${18 + index * 66},${90 - count * 18}`
+        `${18 + index * 66},${pointY(count)}`
     )
     .join(' ')
-  // Пошук працює в списку демонстраційних подій
+  // Пошук працює в списку заявок
   const matchedEvents = mapEvents.filter(
     (event) =>
       !searchQuery ||
@@ -228,7 +242,7 @@ function MapPage() {
       {/* Статистика */}
       <div
         className="rm-stats"
-        aria-label="Статистика демонстраційних подій"
+        aria-label="Статистика заявок"
       >
         <StatCard
           value={total}
@@ -249,8 +263,8 @@ function MapPage() {
           tone="progress"
         />
         <StatCard
-          value={resolvedCount}
-          label="Усунено"
+          value={doneCount}
+          label="Виконано"
           symbol="✓"
           tone="resolved"
         />
@@ -264,10 +278,18 @@ function MapPage() {
           <div className="rm-panel-heading">
             <h2>Карта стану доріг</h2>
             <span className="rm-light-tag">
-              Демонстраційні події
+              Дані з бази RoadMap
             </span>
           </div>
-          {/* Уже реалізована карта KAN-53 */}
+          {loading && (
+            <p className="rm-search-note">Завантаження заявок…</p>
+          )}
+          {error && (
+            <p className="rm-search-note" role="alert">
+              {error}
+            </p>
+          )}
+          {/* Карта KAN-53, тепер із заявками з бекенду */}
           <RoadMapMap />
         </section>
         <div className="rm-side-panels">
@@ -290,8 +312,8 @@ function MapPage() {
               <div className="rm-status-legend">
                 <div>
                   <i className="rm-dot rm-dot--resolved" />
-                  Усунено
-                  <strong>{resolvedCount}</strong>
+                  Виконано
+                  <strong>{doneCount}</strong>
                 </div>
                 <div>
                   <i className="rm-dot rm-dot--progress" />
@@ -316,7 +338,7 @@ function MapPage() {
             <div className="rm-panel-heading">
               <h2>Події за категоріями</h2>
               <span className="rm-small-tag">
-                Демо
+                Відкриті
               </span>
             </div>
             <svg
@@ -343,7 +365,7 @@ function MapPage() {
                 <circle
                   key={index}
                   cx={18 + index * 66}
-                  cy={90 - count * 18}
+                  cy={pointY(count)}
                   r="3.5"
                   fill="#2389c9"
                 />
@@ -373,7 +395,7 @@ function MapPage() {
           <span className="rm-muted-note">
             {searchQuery
               ? `Знайдено: ${matchedEvents.length}`
-              : 'Демонстраційні дані'}
+              : 'Найновіші заявки'}
           </span>
         </div>
         {searchQuery && (
@@ -412,7 +434,9 @@ function MapPage() {
           ))}
           {visibleEvents.length === 0 && (
             <p className="rm-no-results">
-              За цим запитом демонстраційних подій не знайдено.
+              {searchQuery
+                ? 'За цим запитом заявок не знайдено.'
+                : 'Відкритих заявок поки немає.'}
             </p>
           )}
         </div>
@@ -977,10 +1001,8 @@ function App() {
                 allowedRoles={ALL_ROLES}
                 title="Сповіщення"
               >
-                <Placeholder
-                  text="Стрічку сповіщень буде реалізовано окремим завданням."
-                />
-              </ProtectedPage>
+                <NotificationsPage />
+                              </ProtectedPage>
             }
           />
           <Route
@@ -1003,9 +1025,7 @@ function App() {
                 allowedRoles={['driver']}
                 title="Мої звернення"
               >
-                <Placeholder
-                  text="Список власних заявок буде реалізовано окремо. Авторизація та перевірка ролі вже підключені."
-                />
+                <MyReportsPage />
               </ProtectedPage>
             }
           />
@@ -1058,7 +1078,7 @@ function App() {
                 allowedRoles={['admin']}
                 title="Панель адміністратора"
               >
-                <AuditLink text="Інші адміністративні функції будуть додані окремими завданнями." />
+                <AdminDashboardPage />
               </ProtectedPage>
             }
           />

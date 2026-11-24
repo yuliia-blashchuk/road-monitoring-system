@@ -1,10 +1,19 @@
-
 import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { Link } from 'react-router'
 import { MapContainer, Marker, Popup, TileLayer, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 
-import { mapEvents, type RoadEventType } from '../data/mapEvents'
+import type { RoadEventStatus } from '../data/mapEvents'
+import {
+  confirmReport,
+  createReport,
+  getNearbyReports,
+  getProblemTypes,
+  getToken,
+  type NearbyReport,
+  type ProblemType,
+  type ReportCreated,
+} from '../services/roadmapApi'
 import './ReportCreatePage.css'
 
 type Point = {
@@ -16,21 +25,15 @@ const LVIV_CENTER: [number, number] = [49.8397, 24.0297]
 
 const MAX_PHOTOS = 3
 const MAX_PHOTO_SIZE = 5 * 1024 * 1024
-const NEARBY_DISTANCE_METERS = 30
+const COMMENT_MAX = 300
 
-const problemTypes: { value: RoadEventType; label: string }[] = [
-  { value: 'pothole', label: 'Яма або пошкодження дороги' },
-  { value: 'accident', label: 'Дорожня аварія' },
-  { value: 'obstacle', label: 'Перешкода на дорозі' },
-  { value: 'roadworks', label: 'Проблема з ремонтними роботами' },
-  { value: 'traffic_light', label: 'Несправний світлофор' },
-]
-
-const statusLabels = {
+const statusLabels: Record<RoadEventStatus, string> = {
   new: 'Нова',
   accepted: 'Прийнята',
   in_progress: 'У роботі',
+  done: 'Виконана',
   resolved: 'Усунена',
+  rejected: 'Відхилена',
 }
 
 const selectedIcon = L.divIcon({
@@ -39,22 +42,6 @@ const selectedIcon = L.divIcon({
   iconSize: [40, 44],
   iconAnchor: [20, 40],
 })
-
-function distanceInMeters(a: Point, b: Point): number {
-  const radius = 6371000
-  const toRadians = (degrees: number) => (degrees * Math.PI) / 180
-
-  const dLat = toRadians(b.lat - a.lat)
-  const dLng = toRadians(b.lng - a.lng)
-
-  const value =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRadians(a.lat)) *
-      Math.cos(toRadians(b.lat)) *
-      Math.sin(dLng / 2) ** 2
-
-  return 2 * radius * Math.asin(Math.sqrt(value))
-}
 
 function LocationPicker({
   point,
@@ -95,15 +82,58 @@ function LocationPicker({
 }
 
 function ReportCreatePage() {
+  // Заявку може надіслати лише водій, який увійшов (табл. 14: report.create)
+  const isLoggedIn = Boolean(getToken())
+
+  const [problemTypes, setProblemTypes] = useState<ProblemType[]>([])
   const [point, setPoint] = useState<Point | null>(null)
-  const [problemType, setProblemType] = useState<RoadEventType | ''>('')
+  const [problemType, setProblemType] = useState('')
+  const [address, setAddress] = useState('')
   const [comment, setComment] = useState('')
   const [photos, setPhotos] = useState<File[]>([])
   const [agreeData, setAgreeData] = useState(false)
 
   const [locationMessage, setLocationMessage] = useState('')
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState(false)
+  const [sending, setSending] = useState(false)
+  const [created, setCreated] = useState<ReportCreated | null>(null)
+
+  // Схожі заявки поруч (GET /reports/nearby) і «Теж бачу»
+  const [nearby, setNearby] = useState<NearbyReport[]>([])
+  const [nearbyError, setNearbyError] = useState('')
+  const [confirmMessage, setConfirmMessage] = useState('')
+
+  // Типи проблем - з довідника бекенду (GET /problem-types)
+  useEffect(() => {
+    getProblemTypes()
+      .then(setProblemTypes)
+      .catch((reason: Error) => setError(reason.message))
+  }, [])
+
+  const selectedType = problemTypes.find((type) => type.code === problemType)
+
+  // Пошук дублікатів, щойно вибрано і місце, і тип проблеми
+  useEffect(() => {
+    if (!isLoggedIn || !point || !selectedType) return
+
+    let cancelled = false
+    getNearbyReports(point.lat, point.lng, selectedType.id)
+      .then((items) => {
+        if (!cancelled) {
+          setNearby(items)
+          setNearbyError('')
+        }
+      })
+      .catch((reason: Error) => {
+        if (!cancelled) {
+          setNearby([])
+          setNearbyError(reason.message)
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [isLoggedIn, point, selectedType])
 
   const previews = useMemo(
     () =>
@@ -120,23 +150,13 @@ function ReportCreatePage() {
     }
   }, [previews])
 
-  // Пошук можливих повторних повідомлень поруч
-  const nearbyEvents = useMemo(() => {
-    if (!point || !problemType) return []
+  // Згода потрібна лише тоді, коли водій передає фото або коментар (п. 3.5)
+  const needsConsent = photos.length > 0 || comment.trim().length > 0
 
-    return mapEvents
-      .filter((event) => event.type === problemType)
-      .map((event) => ({
-        ...event,
-        distance: distanceInMeters(point, {
-          lat: event.lat,
-          lng: event.lng,
-        }),
-      }))
-      .filter((event) => event.distance <= NEARBY_DISTANCE_METERS)
-      .sort((a, b) => a.distance - b.distance)
-      .slice(0, 5)
-  }, [point, problemType])
+  function selectPoint(next: Point) {
+    setPoint(next)
+    setConfirmMessage('')
+  }
 
   function detectLocation() {
     setLocationMessage('')
@@ -150,7 +170,7 @@ function ReportCreatePage() {
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setPoint({
+        selectPoint({
           lat: position.coords.latitude,
           lng: position.coords.longitude,
         })
@@ -204,11 +224,49 @@ function ReportCreatePage() {
     )
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  // «Теж бачу»: підтвердити наявну заявку замість створення дубліката
+  async function handleConfirm(item: NearbyReport) {
+    setConfirmMessage('')
+    setNearbyError('')
+    try {
+      const result = await confirmReport(item.id)
+      setConfirmMessage(
+        `Дякуємо! Ви підтвердили заявку №${item.number}. ` +
+          `Підтверджень: ${result.confirmations_count}.`
+      )
+      setNearby((previous) =>
+        previous.map((report) =>
+          report.id === item.id
+            ? { ...report, confirmations_count: result.confirmations_count }
+            : report
+        )
+      )
+    } catch (reason) {
+      setNearbyError((reason as Error).message)
+    }
+  }
+
+  function resetForm() {
+    setPoint(null)
+    setProblemType('')
+    setAddress('')
+    setComment('')
+    setPhotos([])
+    setAgreeData(false)
+    setNearby([])
+    setConfirmMessage('')
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
     setError('')
-    setSuccess(false)
+    setCreated(null)
+
+    if (!isLoggedIn) {
+      setError('Щоб надіслати заявку, увійдіть як водій.')
+      return
+    }
 
     if (!point) {
       setError('Позначте місце проблеми на карті.')
@@ -220,24 +278,30 @@ function ReportCreatePage() {
       return
     }
 
-    if (photos.length < 1 || photos.length > 3) {
-      setError('Додайте від 1 до 3 фотографій.')
+    if (needsConsent && !agreeData) {
+      setError('Щоб передати фото й коментар службі, потрібна згода на передачу даних.')
       return
     }
 
-    if (comment.trim().length < 10) {
-      setError('Опишіть проблему хоча б 10 символами.')
-      return
+    setSending(true)
+    try {
+      const result = await createReport({
+        problemType,
+        lat: point.lat,
+        lng: point.lng,
+        comment,
+        address,
+        photos,
+        mediaSharingConsent: agreeData,
+      })
+      setCreated(result)
+      resetForm()
+    } catch (reason) {
+      // Повідомлення бекенду: «Ділянка не обслуговується», ліміт 10 заявок на годину тощо
+      setError((reason as Error).message)
+    } finally {
+      setSending(false)
     }
-
-    if (!agreeData) {
-      setError('Потрібно надати згоду на передачу даних.')
-      return
-    }
-
-    // Демонстраційний режим:
-    // до підключення бекенду заявка не надсилається.
-    setSuccess(true)
   }
 
   return (
@@ -256,9 +320,31 @@ function ReportCreatePage() {
         </div>
 
         <span className="rm-report-demo-badge">
-          Демонстраційна форма
+          Заявка надійде службі
         </span>
       </div>
+
+      {!isLoggedIn && (
+        <p className="rm-report-error" role="alert">
+          Щоб надіслати заявку, <Link to="/login">увійдіть</Link> або{' '}
+          <Link to="/register">зареєструйтесь</Link> як водій.
+        </p>
+      )}
+
+      {created && (
+        <div className="rm-report-success" role="status">
+          <strong>✓ Заявку №{created.number} створено!</strong>
+          <p>
+            {created.service
+              ? `Її отримала служба: ${created.service}.`
+              : 'Її опрацює адміністратор.'}{' '}
+            Статус і зміни видно в картці заявки.
+          </p>
+          <p>
+            <Link to={`/reports/${created.id}`}>Відкрити картку заявки →</Link>
+          </p>
+        </div>
+      )}
 
       <form
         className="rm-report-form"
@@ -288,7 +374,7 @@ function ReportCreatePage() {
 
               <LocationPicker
                 point={point}
-                onSelect={setPoint}
+                onSelect={selectPoint}
               />
             </MapContainer>
           </div>
@@ -315,6 +401,22 @@ function ReportCreatePage() {
               {locationMessage}
             </p>
           )}
+
+          <label
+            className="rm-report-label"
+            htmlFor="rm-report-address"
+          >
+            Адреса або орієнтир (необов'язково)
+          </label>
+
+          <input
+            id="rm-report-address"
+            className="rm-report-control"
+            placeholder="Наприклад: вул. Городоцька, 120, біля зупинки"
+            value={address}
+            onChange={(event) => setAddress(event.target.value)}
+            maxLength={255}
+          />
         </section>
 
         <section className="rm-report-card">
@@ -322,7 +424,7 @@ function ReportCreatePage() {
             <span className="rm-report-step">2</span>
             <div>
               <h2>Інформація про проблему</h2>
-              <p>Оберіть категорію та коротко опишіть ситуацію.</p>
+              <p>Оберіть категорію та за бажанням опишіть ситуацію.</p>
             </div>
           </div>
 
@@ -337,16 +439,17 @@ function ReportCreatePage() {
             id="rm-report-type"
             className="rm-report-control"
             value={problemType}
-            onChange={(event) =>
-              setProblemType(event.target.value as RoadEventType | '')
-            }
+            onChange={(event) => {
+              setProblemType(event.target.value)
+              setConfirmMessage('')
+            }}
             required
           >
             <option value="">Оберіть тип проблеми</option>
 
             {problemTypes.map((type) => (
-              <option key={type.value} value={type.value}>
-                {type.label}
+              <option key={type.code} value={type.code}>
+                {type.name}
               </option>
             ))}
           </select>
@@ -355,7 +458,7 @@ function ReportCreatePage() {
             className="rm-report-label"
             htmlFor="rm-report-comment"
           >
-            Коментар *
+            Коментар (необов'язково)
           </label>
 
           <textarea
@@ -364,13 +467,12 @@ function ReportCreatePage() {
             placeholder="Наприклад: велика яма посеред дороги, яка заважає проїзду автомобілів..."
             value={comment}
             onChange={(event) => setComment(event.target.value)}
-            maxLength={300}
+            maxLength={COMMENT_MAX}
             rows={4}
-            required
           />
 
           <div className="rm-report-counter">
-            {comment.length}/300 символів
+            {comment.length}/{COMMENT_MAX} символів
           </div>
         </section>
 
@@ -380,8 +482,8 @@ function ReportCreatePage() {
             <div>
               <h2>Фотографії</h2>
               <p>
-                Додайте від 1 до 3 фото. Формати JPG, PNG або WebP,
-                до 5 МБ кожне.
+                За бажанням додайте до 3 фото. Формати JPG, PNG або WebP,
+                до 5 МБ кожне. Геодані з фото видаляються автоматично.
               </p>
             </div>
           </div>
@@ -441,47 +543,65 @@ function ReportCreatePage() {
             </div>
           </div>
 
-          {!point || !problemType ? (
+          {!isLoggedIn ? (
+            <p className="rm-report-empty">
+              Перевірка дублікатів доступна після входу.
+            </p>
+          ) : !point || !problemType ? (
             <p className="rm-report-empty">
               Виберіть місце та тип проблеми, щоб побачити
               схожі повідомлення поблизу.
             </p>
-          ) : nearbyEvents.length === 0 ? (
+          ) : nearby.length === 0 ? (
             <p className="rm-report-empty">
-              Серед демонстраційних подій схожих повідомлень
-              у радіусі 30 м не знайдено.
+              Схожих відкритих заявок у радіусі 30 м не знайдено.
             </p>
           ) : (
             <div className="rm-report-duplicates">
               <p className="rm-report-duplicate-warning">
-                Знайдено схожі повідомлення поблизу.
-                Перегляньте їх перед створенням нової заявки.
+                Знайдено схожі заявки поблизу. Якщо це та сама проблема,
+                натисніть «Теж бачу» замість створення нової заявки.
               </p>
 
-              {nearbyEvents.map((item) => (
+              {nearby.map((item) => (
                 <div
                   className="rm-report-duplicate"
                   key={item.id}
                 >
                   <div>
-                    <strong>{item.title}</strong>
-                    <p>{item.address}</p>
+                    <strong>Заявка №{item.number}</strong>
+                    <p>{item.address ?? 'Адресу не вказано'}</p>
                   </div>
 
                   <span>
-                    {Math.round(item.distance)} м ·{' '}
-                    {statusLabels[item.status]}
+                    {Math.round(item.distance_m)} м ·{' '}
+                    {statusLabels[item.status]} · підтверджень:{' '}
+                    {item.confirmations_count}
                   </span>
+
+                  <button
+                    type="button"
+                    className="rm-report-secondary-button"
+                    onClick={() => handleConfirm(item)}
+                  >
+                    Теж бачу
+                  </button>
                 </div>
               ))}
             </div>
           )}
 
-          <p className="rm-report-hint">
-            Перевірка працює на демонстраційних даних RoadMap.
-            Остаточне визначення дублікатів виконуватиметься
-            після інтеграції з сервером.
-          </p>
+          {confirmMessage && (
+            <p className="rm-report-hint" role="status">
+              {confirmMessage}
+            </p>
+          )}
+
+          {nearbyError && (
+            <p className="rm-report-error" role="alert">
+              {nearbyError}
+            </p>
+          )}
         </section>
 
         <section className="rm-report-card">
@@ -492,12 +612,12 @@ function ReportCreatePage() {
               onChange={(event) =>
                 setAgreeData(event.target.checked)
               }
-              required
             />
 
             <span>
-              Надаю згоду на передачу місця проблеми,
-              фотографій та коментаря для опрацювання заявки.
+              Надаю згоду на передачу фотографій та коментаря
+              службі для опрацювання заявки
+              {needsConsent ? ' *' : ' (потрібна, якщо додаєте фото або коментар)'}
             </span>
           </label>
 
@@ -505,16 +625,6 @@ function ReportCreatePage() {
             <p className="rm-report-error" role="alert">
               {error}
             </p>
-          )}
-
-          {success && (
-            <div className="rm-report-success" role="status">
-              <strong>✓ Форму заповнено правильно!</strong>
-              <p>
-                Це демонстраційний режим. Заявку ще не
-                надіслано та не збережено на сервері.
-              </p>
-            </div>
           )}
 
           <div className="rm-report-submit-row">
@@ -528,8 +638,9 @@ function ReportCreatePage() {
             <button
               type="submit"
               className="rm-report-submit-button"
+              disabled={sending || !isLoggedIn}
             >
-              Перевірити заявку
+              {sending ? 'Надсилання…' : 'Надіслати заявку'}
             </button>
           </div>
         </section>

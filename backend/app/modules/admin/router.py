@@ -13,6 +13,7 @@ from app.modules.admin import repository as repo
 from app.modules.admin.models import ProblemType
 from app.modules.admin.schemas import (
     AccessPolicyOut,
+    ContractorOut,
     ProblemTypeCreate,
     ProblemTypeOut,
     RoutingRuleOut,
@@ -26,6 +27,7 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 ManageReference = Annotated[AccessContext, Depends(require("reference", "manage"))]
 ViewPolicies = Annotated[AccessContext, Depends(require("access_policy", "view"))]
+AssignWork = Annotated[AccessContext, Depends(require("work", "assign"))]
 
 
 @public_router.get(
@@ -67,3 +69,13 @@ async def list_routing_rules(session: SessionDep, _: ManageReference) -> list:
 )
 async def list_access_policies(session: SessionDep, _: ViewPolicies) -> list:
     return await repo.access_policies(session)
+
+
+@router.get(
+    "/contractors",
+    response_model=list[ContractorOut],
+    summary="Активні підрядники для призначення (адміністратор)",
+)
+async def list_contractors(session: SessionDep, _: AssignWork) -> list:
+    """Список для вибору підрядника (UC-04, F-19): лише id і назва."""
+    return await repo.active_contractors(session)

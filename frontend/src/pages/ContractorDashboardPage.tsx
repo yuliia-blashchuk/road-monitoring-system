@@ -1,4 +1,3 @@
-
 import {
   useEffect,
   useMemo,
@@ -6,339 +5,332 @@ import {
   useState,
   type ChangeEvent,
 } from 'react'
+import { Link } from 'react-router'
 
-import { mapEvents } from '../data/mapEvents'
+import type { RoadEventStatus } from '../data/mapEvents'
+import {
+  changeStatus,
+  getProblemTypes,
+  getWorkOrders,
+  updateProgress,
+  type Priority,
+  type WorkOrder,
+} from '../services/roadmapApi'
 import './ContractorDashboardPage.css'
-
-type WorkStatus = 'assigned' | 'in_progress' | 'done'
 
 type WorkPhoto = {
   id: string
-  name: string
+  file: File
   url: string
 }
 
-type WorkState = {
-  status: WorkStatus
-  progress: number
-  photos: WorkPhoto[]
-  startedAt?: string
-  finishedAt?: string
-}
-
-const statusLabels: Record<WorkStatus, string> = {
-  assigned: 'Призначена',
+const statusLabels: Partial<Record<RoadEventStatus, string>> = {
+  accepted: 'Очікує початку',
   in_progress: 'В роботі',
-  done: 'Виконана',
+  done: 'Виконана (на перевірці)',
+  resolved: 'Усунена',
+  rejected: 'Відхилена',
 }
 
-const initialState: WorkState = {
-  status: 'assigned',
-  progress: 0,
-  photos: [],
+// Кольори бейджів із ContractorDashboardPage.css
+const statusClasses: Partial<Record<RoadEventStatus, string>> = {
+  accepted: 'assigned',
+  in_progress: 'in_progress',
+  done: 'done',
+  resolved: 'done',
 }
 
-// Для демонстрації обираємо п'ять дорожніх подій,
-// які умовно призначені одному підряднику.
-// Реальні призначення надходитимуть через API.
-const demoAssignedWorks = mapEvents
-  .filter(
-    (event) =>
-      event.type === 'pothole' ||
-      event.type === 'roadworks'
-  )
-  .slice(0, 5)
-
-function formatDate(value: string) {
-  return new Date(value).toLocaleDateString('uk-UA')
+const priorityLabels: Record<Priority, string> = {
+  critical: 'Критичний',
+  high: 'Високий',
+  medium: 'Середній',
+  low: 'Низький',
 }
 
-function formatDateTime(value: string) {
-  return new Date(value).toLocaleString('uk-UA')
+const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp']
+const ACT_TYPES = [...PHOTO_TYPES, 'application/pdf']
+const MAX_SIZE = 5 * 1024 * 1024
+
+function formatDate(value: string | null) {
+  return value ? new Date(value).toLocaleDateString('uk-UA') : '—'
 }
 
+function statusLabel(status: RoadEventStatus) {
+  return statusLabels[status] ?? status
+}
+
+function statusClass(status: RoadEventStatus) {
+  return `rm-contractor-status rm-contractor-status--${statusClasses[status] ?? 'assigned'}`
+}
+
+// Кабінет підрядника (UC-04, UC-06): призначені роботи з бази
+// (GET /work-orders), початок робіт (PATCH /reports/{id}/status)
+// і прогрес з фото «після» та актом (POST /work-orders/{id}/progress).
 function ContractorDashboardPage() {
-  const [workStates, setWorkStates] = useState<
-    Record<number, WorkState>
-  >({})
+  const [works, setWorks] = useState<WorkOrder[]>([])
+  const [typeNames, setTypeNames] = useState<Record<string, string>>({})
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [reloadKey, setReloadKey] = useState(0)
 
-  const [selectedId, setSelectedId] = useState(
-    demoAssignedWorks[0]?.id ?? 0
-  )
-
-  const [statusFilter, setStatusFilter] = useState('all')
+  const [selectedId, setSelectedId] = useState<number | null>(null)
+  const [statusFilter, setStatusFilter] = useState('open')
   const [search, setSearch] = useState('')
+
+  // Форма прогресу. Чернетка прогресу прив'язана до роботи, щоб не переносилась на іншу
+  const [draft, setDraft] = useState<{ id: number; value: number } | null>(null)
+  const [comment, setComment] = useState('')
+  const [photos, setPhotos] = useState<WorkPhoto[]>([])
+  const [act, setAct] = useState<File | null>(null)
+
+  const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
 
   const photoUrls = useRef<Set<string>>(new Set())
 
-  // Звільняємо тимчасові адреси фотографій.
+  // Назви типів проблем (у роботах приходить лише код, напр. pothole)
+  useEffect(() => {
+    getProblemTypes()
+      .then((types) =>
+        setTypeNames(
+          Object.fromEntries(types.map((type) => [type.code, type.name]))
+        )
+      )
+      .catch(() => undefined)
+  }, [])
+
+  // Роботи підрядника; reloadKey змінюється після кожної дії
+  useEffect(() => {
+    let cancelled = false
+    getWorkOrders(undefined, 100)
+      .then((items) => {
+        if (!cancelled) {
+          setWorks(items)
+          setLoadError('')
+        }
+      })
+      .catch((reason: Error) => {
+        if (!cancelled) setLoadError(reason.message)
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [reloadKey])
+
+  // Звільняємо тимчасові адреси фотографій
   useEffect(() => {
     const urls = photoUrls.current
-
     return () => {
       urls.forEach((url) => URL.revokeObjectURL(url))
       urls.clear()
     }
   }, [])
 
-  function getWorkState(id: number): WorkState {
-    return workStates[id] ?? initialState
-  }
-
-  function updateWork(
-    id: number,
-    changes: Partial<WorkState>
-  ) {
-    setWorkStates((previous) => {
-      const current = previous[id] ?? initialState
-
-      return {
-        ...previous,
-        [id]: {
-          ...current,
-          ...changes,
-        },
-      }
-    })
+  function typeName(code: string) {
+    return typeNames[code] ?? code
   }
 
   const filteredWorks = useMemo(() => {
     const query = search.trim().toLowerCase()
 
-    return demoAssignedWorks
-      .filter((work) => {
-        const matchesStatus =
-          statusFilter === 'all' ||
-          (workStates[work.id]?.status ?? 'assigned') ===
-            statusFilter
+    return works.filter((work) => {
+      const matchesStatus =
+        statusFilter === 'all' ||
+        (statusFilter === 'open'
+          ? ['accepted', 'in_progress'].includes(work.status)
+          : work.status === statusFilter)
 
-        const matchesSearch =
-          !query ||
-          work.title.toLowerCase().includes(query) ||
-          work.address.toLowerCase().includes(query) ||
-          String(work.id).includes(query)
+      const matchesSearch =
+        !query ||
+        (typeNames[work.problem_type] ?? work.problem_type)
+          .toLowerCase()
+          .includes(query) ||
+        (work.address ?? '').toLowerCase().includes(query) ||
+        String(work.number).includes(query)
 
-        return matchesStatus && matchesSearch
-      })
-      .sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() -
-          new Date(a.createdAt).getTime()
-      )
-  }, [search, statusFilter, workStates])
+      return matchesStatus && matchesSearch
+    })
+  }, [works, search, statusFilter, typeNames])
 
   const selectedWork =
     filteredWorks.find((work) => work.id === selectedId) ??
     filteredWorks[0]
 
-  const selectedState = selectedWork
-    ? getWorkState(selectedWork.id)
-    : initialState
+  const savedProgress = selectedWork?.progress_percent ?? 0
+  const progress =
+    selectedWork && draft?.id === selectedWork.id
+      ? Math.max(draft.value, savedProgress)
+      : savedProgress
 
-  const totalCount = demoAssignedWorks.length
-
-  const assignedCount = demoAssignedWorks.filter(
-    (work) => getWorkState(work.id).status === 'assigned'
+  const waitingCount = works.filter((w) => w.status === 'accepted').length
+  const activeCount = works.filter((w) => w.status === 'in_progress').length
+  const doneCount = works.filter((w) =>
+    ['done', 'resolved'].includes(w.status)
   ).length
+  const overdueCount = works.filter((w) => w.is_overdue).length
 
-  const activeCount = demoAssignedWorks.filter(
-    (work) => getWorkState(work.id).status === 'in_progress'
-  ).length
-
-  const doneCount = demoAssignedWorks.filter(
-    (work) => getWorkState(work.id).status === 'done'
-  ).length
-
-  function selectWork(id: number) {
-    setSelectedId(id)
-    setError('')
-    setMessage('')
-  }
-
-  function startWork() {
-    if (!selectedWork) return
-
-    if (selectedState.status !== 'assigned') {
-      setError('Цю роботу вже розпочато або завершено.')
-      return
-    }
-
-    updateWork(selectedWork.id, {
-      status: 'in_progress',
-      progress: 0,
-      startedAt: new Date().toISOString(),
+  function clearPhotos() {
+    photos.forEach((photo) => {
+      URL.revokeObjectURL(photo.url)
+      photoUrls.current.delete(photo.url)
     })
-
-    setError('')
-    setMessage('Роботи розпочато.')
+    setPhotos([])
   }
 
-  function changeProgress(value: number) {
-    if (!selectedWork) return
-    if (selectedState.status !== 'in_progress') return
+  function resetForm() {
+    clearPhotos()
+    setDraft(null)
+    setComment('')
+    setAct(null)
+  }
 
-    const progress = Math.max(0, Math.min(100, value))
-
-    updateWork(selectedWork.id, { progress })
-
+  function selectWork(work: WorkOrder) {
+    setSelectedId(work.id)
+    resetForm()
     setError('')
     setMessage('')
+  }
+
+  async function startWork() {
+    if (!selectedWork) return
+    setSaving(true)
+    setError('')
+    setMessage('')
+    try {
+      await changeStatus(selectedWork.id, {
+        status: 'in_progress',
+        comment: 'Роботи розпочато',
+      })
+      setSelectedId(selectedWork.id)
+      resetForm()
+      setMessage('Роботи розпочато. Тепер можна оновлювати прогрес.')
+      setStatusFilter('open')
+      setReloadKey((key) => key + 1)
+    } catch (reason) {
+      setError((reason as Error).message)
+    } finally {
+      setSaving(false)
+    }
   }
 
   function addPhotos(event: ChangeEvent<HTMLInputElement>) {
-    if (!selectedWork) return
-
     const files = Array.from(event.target.files ?? [])
     event.target.value = ''
-
     if (!files.length) return
 
-    if (selectedState.status !== 'in_progress') {
-      setError(
-        'Фотографії можна додавати після початку робіт.'
-      )
+    if (photos.length + files.length > 3) {
+      setError('За один раз можна додати не більше трьох фотографій.')
       return
     }
-
-    if (selectedState.photos.length + files.length > 3) {
-      setError('Можна додати не більше трьох фотографій.')
-      return
-    }
-
-    const allowedTypes = [
-      'image/jpeg',
-      'image/png',
-      'image/webp',
-    ]
 
     for (const file of files) {
-      if (!allowedTypes.includes(file.type)) {
-        setError(
-          'Дозволені формати фотографій: JPG, PNG, WebP.'
-        )
+      if (!PHOTO_TYPES.includes(file.type)) {
+        setError('Дозволені формати фотографій: JPG, PNG, WebP.')
         return
       }
-
-      if (file.size > 5 * 1024 * 1024) {
-        setError(
-          'Розмір кожної фотографії не може перевищувати 5 МБ.'
-        )
+      if (file.size > MAX_SIZE) {
+        setError('Розмір кожної фотографії не може перевищувати 5 МБ.')
         return
       }
     }
 
-    const newPhotos: WorkPhoto[] = files.map((file) => {
+    const newPhotos = files.map((file) => {
       const url = URL.createObjectURL(file)
       photoUrls.current.add(url)
-
-      return {
-        id: crypto.randomUUID(),
-        name: file.name,
-        url,
-      }
+      return { id: crypto.randomUUID(), file, url }
     })
 
-    updateWork(selectedWork.id, {
-      photos: [...selectedState.photos, ...newPhotos],
-    })
-
+    setPhotos([...photos, ...newPhotos])
     setError('')
-    setMessage('Фотографії додано.')
   }
 
   function removePhoto(photoId: string) {
-    if (!selectedWork) return
-    if (selectedState.status === 'done') return
-
-    const photo = selectedState.photos.find(
-      (item) => item.id === photoId
-    )
-
+    const photo = photos.find((item) => item.id === photoId)
     if (photo) {
       URL.revokeObjectURL(photo.url)
       photoUrls.current.delete(photo.url)
     }
-
-    updateWork(selectedWork.id, {
-      photos: selectedState.photos.filter(
-        (item) => item.id !== photoId
-      ),
-    })
-
-    setMessage('')
+    setPhotos(photos.filter((item) => item.id !== photoId))
   }
 
-  function finishWork() {
+  function chooseAct(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0] ?? null
+    event.target.value = ''
+    if (!file) return
+
+    if (!ACT_TYPES.includes(file.type)) {
+      setError('Акт має бути у форматі PDF, JPG, PNG або WebP.')
+      return
+    }
+    if (file.size > MAX_SIZE) {
+      setError('Розмір акта не може перевищувати 5 МБ.')
+      return
+    }
+    setAct(file)
+    setError('')
+  }
+
+  async function saveProgress() {
     if (!selectedWork) return
 
-    if (selectedState.status !== 'in_progress') {
-      setError('Спочатку потрібно розпочати роботи.')
+    if (
+      progress === savedProgress &&
+      photos.length === 0 &&
+      !act &&
+      !comment.trim()
+    ) {
+      setError('Змініть прогрес або додайте фото, акт чи коментар.')
       return
     }
 
-    if (selectedState.progress !== 100) {
-      setError(
-        'Для завершення встановіть прогрес виконання 100%.'
-      )
-      return
-    }
-
-    if (selectedState.photos.length === 0) {
-      setError(
-        'Для завершення потрібно додати хоча б одне фото «після».'
-      )
-      return
-    }
-
-    updateWork(selectedWork.id, {
-      status: 'done',
-      finishedAt: new Date().toISOString(),
-    })
-
+    setSaving(true)
     setError('')
-    setMessage(
-      'Роботу позначено як виконану. Остаточне підтвердження має надати диспетчер.'
-    )
+    setMessage('')
+    try {
+      await updateProgress(selectedWork.id, {
+        percent: progress,
+        comment,
+        photos: photos.map((photo) => photo.file),
+        act,
+      })
+      setMessage(
+        progress === 100
+          ? 'Роботи здано. Статус «Виконана»: служба перевірить фотозвіт і підтвердить усунення.'
+          : `Прогрес ${progress}% збережено.`
+      )
+      resetForm()
+      if (progress === 100) setStatusFilter('all')
+      setReloadKey((key) => key + 1)
+    } catch (reason) {
+      setError((reason as Error).message)
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
     <div className="rm-contractor-page">
       <header className="rm-contractor-heading">
         <div>
-          <p className="rm-contractor-eyebrow">
-            RoadMap / Робочий простір
-          </p>
+          <p className="rm-contractor-eyebrow">RoadMap / Робочий простір</p>
           <h1>Кабінет підрядника</h1>
-          <p>
-            Перегляд призначених ремонтів та оновлення
-            виконання робіт.
-          </p>
+          <p>Призначені вам ремонти та оновлення ходу робіт.</p>
         </div>
 
-        <span className="rm-contractor-demo">
-          Демонстраційний режим
-        </span>
+        {works[0]?.contractor_name && (
+          <span className="rm-contractor-demo">{works[0].contractor_name}</span>
+        )}
       </header>
-
-      <div className="rm-contractor-notice">
-        Призначення робіт і зміни прогресу є
-        демонстраційними. Вони не зберігаються на
-        сервері та скидаються після оновлення сторінки.
-      </div>
 
       <section className="rm-contractor-stats">
         <div className="rm-contractor-stat">
-          <span>Усього призначено</span>
-          <strong>{totalCount}</strong>
-          <small>Демонстраційні об'єкти</small>
-        </div>
-
-        <div className="rm-contractor-stat">
           <span>Очікують початку</span>
-          <strong>{assignedCount}</strong>
-          <small>Ще не розпочаті</small>
+          <strong>{waitingCount}</strong>
+          <small>Призначені, ще не розпочаті</small>
         </div>
 
         <div className="rm-contractor-stat">
@@ -348,9 +340,15 @@ function ContractorDashboardPage() {
         </div>
 
         <div className="rm-contractor-stat">
+          <span>Прострочені</span>
+          <strong>{overdueCount}</strong>
+          <small>Строк минув</small>
+        </div>
+
+        <div className="rm-contractor-stat">
           <span>Виконано</span>
           <strong>{doneCount}</strong>
-          <small>Очікують підтвердження</small>
+          <small>Здані роботи</small>
         </div>
       </section>
 
@@ -362,7 +360,7 @@ function ContractorDashboardPage() {
           </div>
 
           <span className="rm-contractor-count">
-            {filteredWorks.length} із {totalCount}
+            {filteredWorks.length} із {works.length}
           </span>
         </div>
 
@@ -372,10 +370,8 @@ function ContractorDashboardPage() {
             <input
               type="search"
               value={search}
-              onChange={(event) =>
-                setSearch(event.target.value)
-              }
-              placeholder="Назва, адреса або номер..."
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Тип, адреса або номер..."
             />
           </label>
 
@@ -383,14 +379,14 @@ function ContractorDashboardPage() {
             Статус
             <select
               value={statusFilter}
-              onChange={(event) =>
-                setStatusFilter(event.target.value)
-              }
+              onChange={(event) => setStatusFilter(event.target.value)}
             >
+              <option value="open">Активні</option>
               <option value="all">Усі статуси</option>
-              <option value="assigned">Призначена</option>
+              <option value="accepted">Очікує початку</option>
               <option value="in_progress">В роботі</option>
-              <option value="done">Виконана</option>
+              <option value="done">Виконана (на перевірці)</option>
+              <option value="resolved">Усунена</option>
             </select>
           </label>
 
@@ -399,151 +395,141 @@ function ContractorDashboardPage() {
             className="rm-contractor-secondary"
             onClick={() => {
               setSearch('')
-              setStatusFilter('all')
+              setStatusFilter('open')
             }}
           >
             Скинути
           </button>
         </div>
 
-        <div className="rm-contractor-table-wrap">
-          <table className="rm-contractor-table">
-            <thead>
-              <tr>
-                <th>№</th>
-                <th>Ремонтний об'єкт</th>
-                <th>Адреса</th>
-                <th>Статус</th>
-                <th>Прогрес</th>
-                <th>Дата</th>
-              </tr>
-            </thead>
+        {loading && <p className="rm-contractor-empty">Завантаження робіт…</p>}
 
-            <tbody>
-              {filteredWorks.map((work) => {
-                const state = getWorkState(work.id)
+        {loadError && (
+          <p role="alert" className="rm-contractor-error">
+            {loadError}
+          </p>
+        )}
 
-                return (
+        {!loading && !loadError && (
+          <div className="rm-contractor-table-wrap">
+            <table className="rm-contractor-table">
+              <thead>
+                <tr>
+                  <th>№</th>
+                  <th>Ремонтний об'єкт</th>
+                  <th>Адреса</th>
+                  <th>Пріоритет</th>
+                  <th>Статус</th>
+                  <th>Прогрес</th>
+                  <th>Строк</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {filteredWorks.map((work) => (
                   <tr
                     key={work.id}
-                    className={
-                      selectedWork?.id === work.id
-                        ? 'selected'
-                        : ''
-                    }
-                    onClick={() => selectWork(work.id)}
+                    className={selectedWork?.id === work.id ? 'selected' : ''}
+                    onClick={() => selectWork(work)}
                   >
-                    <td>#{work.id}</td>
+                    <td>№{work.number}</td>
 
                     <td>
                       <button
                         type="button"
                         className="rm-contractor-row-link"
-                        onClick={() => selectWork(work.id)}
+                        onClick={() => selectWork(work)}
                       >
-                        {work.title}
+                        {typeName(work.problem_type)}
                       </button>
                     </td>
 
-                    <td>{work.address}</td>
+                    <td>{work.address ?? 'Адресу не вказано'}</td>
+
+                    <td>{priorityLabels[work.priority]}</td>
 
                     <td>
-                      <span
-                        className={
-                          'rm-contractor-status ' +
-                          `rm-contractor-status--${state.status}`
-                        }
-                      >
-                        {statusLabels[state.status]}
+                      <span className={statusClass(work.status)}>
+                        {statusLabel(work.status)}
                       </span>
                     </td>
 
                     <td>
                       <div className="rm-contractor-progress-cell">
                         <div className="rm-contractor-progress-track">
-                          <div
-                            style={{
-                              width: `${state.progress}%`,
-                            }}
-                          />
+                          <div style={{ width: `${work.progress_percent ?? 0}%` }} />
                         </div>
-
-                        <strong>{state.progress}%</strong>
+                        <strong>{work.progress_percent ?? 0}%</strong>
                       </div>
                     </td>
 
-                    <td>{formatDate(work.createdAt)}</td>
+                    <td
+                      style={work.is_overdue ? { color: '#d32f2f', fontWeight: 600 } : undefined}
+                      title={work.is_overdue ? 'Строк минув' : undefined}
+                    >
+                      {formatDate(work.deadline)}
+                      {work.is_overdue && ' ⚠'}
+                    </td>
                   </tr>
-                )
-              })}
-            </tbody>
-          </table>
+                ))}
+              </tbody>
+            </table>
 
-          {filteredWorks.length === 0 && (
-            <p className="rm-contractor-empty">
-              За вибраними параметрами робіт немає.
-            </p>
-          )}
-        </div>
+            {works.length === 0 && (
+              <p className="rm-contractor-empty">Вам ще не призначено жодної роботи.</p>
+            )}
+
+            {works.length > 0 && filteredWorks.length === 0 && (
+              <p className="rm-contractor-empty">
+                За вибраними параметрами робіт немає.
+              </p>
+            )}
+          </div>
+        )}
       </section>
 
       {selectedWork && (
         <section className="rm-contractor-card rm-contractor-details">
           <div className="rm-contractor-section-heading">
             <div>
-              <h2>Робота №{selectedWork.id}</h2>
-              <p>{selectedWork.title}</p>
+              <h2>Робота №{selectedWork.number}</h2>
+              <p>
+                {typeName(selectedWork.problem_type)} ·{' '}
+                <Link to={`/reports/${selectedWork.id}`}>
+                  Відкрити картку заявки →
+                </Link>
+              </p>
             </div>
 
-            <span
-              className={
-                'rm-contractor-status ' +
-                `rm-contractor-status--${selectedState.status}`
-              }
-            >
-              {statusLabels[selectedState.status]}
+            <span className={statusClass(selectedWork.status)}>
+              {statusLabel(selectedWork.status)}
             </span>
           </div>
 
           <div className="rm-contractor-detail-grid">
             <div>
               <span>Адреса</span>
-              <strong>{selectedWork.address}</strong>
+              <strong>{selectedWork.address ?? 'Адресу не вказано'}</strong>
             </div>
 
             <div>
-              <span>Дата призначення (демо)</span>
+              <span>Кінцевий строк</span>
               <strong>
-                {formatDate(selectedWork.createdAt)}
+                {formatDate(selectedWork.deadline)}
+                {selectedWork.is_overdue && ' (прострочено)'}
               </strong>
             </div>
 
             <div>
-              <span>Статус</span>
-              <strong>
-                {statusLabels[selectedState.status]}
-              </strong>
+              <span>Пріоритет</span>
+              <strong>{priorityLabels[selectedWork.priority]}</strong>
             </div>
 
             <div>
               <span>Виконано</span>
-              <strong>{selectedState.progress}%</strong>
+              <strong>{savedProgress}%</strong>
             </div>
           </div>
-
-          {selectedState.startedAt && (
-            <p className="rm-contractor-date-note">
-              Роботи розпочато:{' '}
-              {formatDateTime(selectedState.startedAt)}
-            </p>
-          )}
-
-          {selectedState.finishedAt && (
-            <p className="rm-contractor-date-note">
-              Роботу завершено:{' '}
-              {formatDateTime(selectedState.finishedAt)}
-            </p>
-          )}
 
           <div className="rm-contractor-divider" />
 
@@ -551,57 +537,78 @@ function ContractorDashboardPage() {
 
           <div className="rm-contractor-progress-heading">
             <span>Прогрес ремонту</span>
-            <strong>{selectedState.progress}%</strong>
+            <strong>
+              {progress}%
+            </strong>
           </div>
 
           <div className="rm-contractor-progress-large">
             <div
               style={{
-                width: `${selectedState.progress}%`,
+                width: `${progress}%`,
               }}
             />
           </div>
 
-          {selectedState.status === 'assigned' && (
+          {selectedWork.status === 'accepted' && (
             <div className="rm-contractor-actions">
               <button
                 type="button"
                 className="rm-contractor-primary"
                 onClick={startWork}
+                disabled={saving}
               >
-                Розпочати роботи
+                {saving ? 'Збереження…' : 'Розпочати роботи'}
               </button>
             </div>
           )}
 
-          {selectedState.status === 'in_progress' && (
+          {selectedWork.status === 'in_progress' && (
             <>
               <label className="rm-contractor-slider-label">
-                Оновити відсоток виконання
+                Оновити відсоток виконання (не менше {savedProgress}%)
                 <input
                   type="range"
                   min={0}
                   max={100}
                   step={5}
-                  value={selectedState.progress}
+                  value={progress}
                   onChange={(event) =>
-                    changeProgress(
-                      Number(event.target.value)
-                    )
+                    setDraft({ id: selectedWork.id, value: Number(event.target.value) })
                   }
+                />
+              </label>
+
+              <label className="rm-contractor-slider-label">
+                Коментар (необов'язково)
+                <textarea
+                  value={comment}
+                  maxLength={300}
+                  rows={2}
+                  style={{
+                    display: 'block',
+                    width: '100%',
+                    marginTop: 8,
+                    padding: '10px 12px',
+                    border: '1px solid #cbe5f8',
+                    borderRadius: 10,
+                    font: 'inherit',
+                    resize: 'vertical',
+                  }}
+                  onChange={(event) => setComment(event.target.value)}
+                  placeholder="Що зроблено на цьому етапі..."
                 />
               </label>
 
               <div className="rm-contractor-photo-section">
                 <h3>Фотографії «після»</h3>
                 <p>
-                  Додайте від 1 до 3 фотографій результату
-                  ремонту. JPG, PNG або WebP, до 5 МБ кожна.
+                  До 3 фото за раз: JPG, PNG або WebP, до 5 МБ кожне.
+                  {progress === 100 && ' Для здачі робіт потрібне хоча б одне фото «після».'}
                 </p>
 
                 <label className="rm-contractor-upload">
                   <span>+ Додати фотографії</span>
-
                   <input
                     type="file"
                     accept="image/jpeg,image/png,image/webp"
@@ -611,72 +618,83 @@ function ContractorDashboardPage() {
                 </label>
               </div>
 
+              {photos.length > 0 && (
+                <div className="rm-contractor-photo-grid">
+                  {photos.map((photo) => (
+                    <div key={photo.id} className="rm-contractor-photo">
+                      <img src={photo.url} alt={photo.file.name} />
+                      <button
+                        type="button"
+                        aria-label={`Видалити ${photo.file.name}`}
+                        onClick={() => removePhoto(photo.id)}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="rm-contractor-photo-section">
+                <h3>Акт виконаних робіт</h3>
+                <p>
+                  PDF або фото, до 5 МБ.
+                  {progress === 100 && ' Для здачі робіт акт обов’язковий.'}
+                </p>
+
+                <label className="rm-contractor-upload">
+                  <span>{act ? `📄 ${act.name}` : '+ Додати акт'}</span>
+                  <input
+                    type="file"
+                    accept="application/pdf,image/jpeg,image/png,image/webp"
+                    onChange={chooseAct}
+                  />
+                </label>
+              </div>
+
               <div className="rm-contractor-actions">
                 <button
                   type="button"
                   className="rm-contractor-primary"
-                  onClick={finishWork}
+                  onClick={saveProgress}
+                  disabled={saving}
                 >
-                  Завершити роботи
+                  {saving
+                    ? 'Збереження…'
+                    : progress === 100
+                      ? 'Здати роботи (100%)'
+                      : 'Зберегти прогрес'}
                 </button>
               </div>
             </>
           )}
 
-          {selectedState.photos.length > 0 && (
-            <div className="rm-contractor-photo-grid">
-              {selectedState.photos.map((photo) => (
-                <div
-                  key={photo.id}
-                  className="rm-contractor-photo"
-                >
-                  <img
-                    src={photo.url}
-                    alt={photo.name}
-                  />
-
-                  {selectedState.status !== 'done' && (
-                    <button
-                      type="button"
-                      aria-label={`Видалити ${photo.name}`}
-                      onClick={() =>
-                        removePhoto(photo.id)
-                      }
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-
           {error && (
-            <p
-              role="alert"
-              className="rm-contractor-error"
-            >
+            <p role="alert" className="rm-contractor-error">
               {error}
             </p>
           )}
 
           {message && (
-            <p
-              role="status"
-              className="rm-contractor-success"
-            >
+            <p role="status" className="rm-contractor-success">
               {message}
             </p>
           )}
 
-          {selectedState.status === 'done' && (
+          {selectedWork.status === 'done' && (
             <div className="rm-contractor-finished">
-              <strong>Роботу виконано!</strong>
+              <strong>Роботу здано!</strong>
               <p>
-                Фотозвіт підготовлено. Остаточний статус
-                «Усунена» може встановити лише диспетчер
-                після перевірки результату.
+                Фотозвіт і акт надіслано. Остаточний статус «Усунена»
+                встановлює служба після перевірки результату.
               </p>
+            </div>
+          )}
+
+          {selectedWork.status === 'resolved' && (
+            <div className="rm-contractor-finished">
+              <strong>Служба підтвердила усунення.</strong>
+              <p>Заявку закрито.</p>
             </div>
           )}
         </section>

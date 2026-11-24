@@ -39,3 +39,12 @@ class AccessPolicyOut(BaseModel):
     action: str
     scope: AccessScope
     log_access: bool
+
+
+class ContractorOut(BaseModel):
+    """Підрядник для вибору під час призначення. Без ЄДРПОУ й контактів (конфіденційні)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str

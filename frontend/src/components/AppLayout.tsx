@@ -11,7 +11,7 @@ import {
   useLocation,
   useNavigate,
 } from 'react-router'
-
+import NotificationBell from './NotificationBell'
 import SiteFooter from './SiteFooter'
 
 type AppLayoutProps = {
@@ -247,9 +247,9 @@ function AppLayout({ children }: AppLayoutProps) {
             />
 
             <input
-              aria-label="Пошук серед демонстраційних дорожніх подій"
-              placeholder="Пошук серед демоподій..."
-              value={search}
+              aria-label="Пошук заявок на карті"
+              placeholder="Пошук заявок: тип, адреса, номер..."
+                            value={search}
               onChange={(event) =>
                 setSearch(event.target.value)
               }
@@ -264,17 +264,12 @@ function AppLayout({ children }: AppLayoutProps) {
           </form>
 
           <div className="rm-top-actions">
-            <Link
-              to="/notifications"
-              className="rm-top-icon"
-              title="Сповіщення"
-              aria-label="Сповіщення"
-            >
+            <NotificationBell>
               <MenuIcon
                 name="bell"
                 size={19}
               />
-            </Link>
+            </NotificationBell>
 
             <Link
               to={
