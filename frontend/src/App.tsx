@@ -15,7 +15,9 @@ import {
 } from 'react-router'
 import RoadMapMap from './components/RoadMapMap'
 import ReportCreatePage from './pages/ReportCreatePage'
+
 import ReportDetailsPage from './pages/ReportDetailsPage'
+import MyReportsPage from './pages/MyReportsPage'
 import ServiceDashboardPage from './pages/ServiceDashboardPage'
 import ContractorDashboardPage from './pages/ContractorDashboardPage'
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
@@ -1023,9 +1025,7 @@ function App() {
                 allowedRoles={['driver']}
                 title="Мої звернення"
               >
-                <Placeholder
-                  text="Список власних заявок буде реалізовано окремо. Авторизація та перевірка ролі вже підключені."
-                />
+                <MyReportsPage />
               </ProtectedPage>
             }
           />
