@@ -350,3 +350,36 @@ export function toRoadEvent(report: MapReport): RoadEvent {
     createdAt: report.created_at,
   }
 }
+
+
+// ---------- дублікати поруч і «Теж бачу» (KAN-63) ----------
+
+export type NearbyReport = {
+  id: number
+  number: number
+  problem_type_id: number
+  status: RoadEventStatus
+  confirmations_count: number
+  address: string | null
+  lat: number
+  lng: number
+  distance_m: number
+  created_at: string
+}
+
+// Схожі відкриті заявки в радіусі 30 м від точки (лише для водія, який увійшов).
+export function getNearbyReports(
+  lat: number,
+  lng: number,
+  problemTypeId: number,
+): Promise<NearbyReport[]> {
+  return request<NearbyReport[]>(
+    `/reports/nearby${query({ lat, lng, problem_type_id: problemTypeId })}`,
+  )
+}
+
+export function confirmReport(
+  id: number,
+): Promise<{ request_id: number; confirmations_count: number; priority_raised: boolean }> {
+  return request(`/reports/${id}/confirm`, { method: 'POST' })
+}
