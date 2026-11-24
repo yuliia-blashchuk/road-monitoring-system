@@ -318,7 +318,31 @@ export function updateProgress(
   if (data.act) form.set('act', data.act)
   return request(`/work-orders/${id}/progress`, { method: 'POST', body: form })
 }
+// ---------- адміністратор ----------
 
+// GET /admin/contractors - підрядники для вибору (лише id і назва)
+export type Contractor = {
+  id: number
+  name: string
+}
+
+export function getContractors(): Promise<Contractor[]> {
+  return request<Contractor[]>('/admin/contractors')
+}
+
+// POST /work-orders - призначити підрядника й строк (UC-04, F-19)
+export function assignContractor(data: {
+  request_id: number
+  contractor_id: number
+  deadline: string
+  scope?: string
+}): Promise<WorkOrder> {
+  return request<WorkOrder>('/work-orders', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+}
 // ---------- сповіщення ----------
 
 export function getNotifications(unreadOnly = false, limit = 20): Promise<NotificationPage> {

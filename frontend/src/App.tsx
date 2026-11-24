@@ -19,6 +19,7 @@ import ReportCreatePage from './pages/ReportCreatePage'
 import ReportDetailsPage from './pages/ReportDetailsPage'
 import MyReportsPage from './pages/MyReportsPage'
 import NotificationsPage from './pages/NotificationsPage'
+import AdminDashboardPage from './pages/AdminDashboardPage'
 import ServiceDashboardPage from './pages/ServiceDashboardPage'
 import ContractorDashboardPage from './pages/ContractorDashboardPage'
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
@@ -1077,7 +1078,7 @@ function App() {
                 allowedRoles={['admin']}
                 title="Панель адміністратора"
               >
-                <AuditLink text="Інші адміністративні функції будуть додані окремими завданнями." />
+                <AdminDashboardPage />
               </ProtectedPage>
             }
           />
