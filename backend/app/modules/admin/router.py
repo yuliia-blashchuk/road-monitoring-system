@@ -9,6 +9,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.core.access_control import AccessContext, require
+from app.core.openapi import errors
 from app.modules.admin import repository as repo
 from app.modules.admin.models import ProblemType
 from app.modules.admin.schemas import (
@@ -23,7 +24,7 @@ from app.modules.users.dependencies import SessionDep
 # Публічні довідники - потрібні карті й формі заявки без входу.
 public_router = APIRouter(tags=["reference"])
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+router = APIRouter(prefix="/admin", tags=["admin"], responses=errors(401, 403))
 
 ManageReference = Annotated[AccessContext, Depends(require("reference", "manage"))]
 ViewPolicies = Annotated[AccessContext, Depends(require("access_policy", "view"))]
@@ -42,6 +43,7 @@ async def list_problem_types(session: SessionDep) -> list[ProblemType]:
     response_model=ProblemTypeOut,
     status_code=status.HTTP_201_CREATED,
     summary="Додати тип проблеми (адміністратор)",
+    responses=errors(409, e409="Тип з таким кодом уже існує"),
 )
 async def create_problem_type(
     data: ProblemTypeCreate, session: SessionDep, _: ManageReference

@@ -7,6 +7,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from app.core.access_control import AccessContext, access_role, list_permissions, require
 from app.core.enums import ConsentType
+from app.core.openapi import errors
 from app.modules.admin.schemas import AccessPolicyOut
 from app.modules.users import service
 from app.modules.users.dependencies import CurrentUser, SessionDep
@@ -47,7 +48,7 @@ async def login(
     return await service.login(session, form.username, form.password)
 
 
-@router.get("/me", response_model=UserOut, summary="Поточний користувач")
+@router.get("/me", response_model=UserOut, summary="Поточний користувач", responses=errors(401))
 async def me(user: CurrentUser, session: SessionDep) -> UserOut:
     return await service.profile(session, user)
 
@@ -56,6 +57,7 @@ async def me(user: CurrentUser, session: SessionDep) -> UserOut:
     "/me/permissions",
     response_model=list[AccessPolicyOut],
     summary="Дозволені дії поточного користувача",
+    responses=errors(401),
 )
 async def my_permissions(user: CurrentUser, session: SessionDep) -> list:
     """Фронтенд показує лише доступні кнопки. Це зручність, а не захист:
@@ -65,7 +67,7 @@ async def my_permissions(user: CurrentUser, session: SessionDep) -> list:
 
 # ---------- «Мої згоди» (KAN-65, п. 3.5) ----------
 
-consent_router = APIRouter(prefix="/consents", tags=["consents"])
+consent_router = APIRouter(prefix="/consents", tags=["consents"], responses=errors(401, 403))
 
 ManageOwnConsents = Annotated[AccessContext, Depends(require("consent", "manage"))]
 ViewConsents = Annotated[AccessContext, Depends(require("consent", "view"))]

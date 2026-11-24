@@ -13,11 +13,12 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 
 from app.core.access_control import AccessContext, require
+from app.core.openapi import errors
 from app.modules.dedup import service
 from app.modules.dedup.schemas import ConfirmResult, NearbyReport
 from app.modules.users.dependencies import SessionDep
 
-router = APIRouter(prefix="/reports", tags=["dedup"])
+router = APIRouter(prefix="/reports", tags=["dedup"], responses=errors(401, 403))
 
 CreateReport = Annotated[AccessContext, Depends(require("report", "create"))]
 ConfirmReport = Annotated[AccessContext, Depends(require("report", "confirm"))]
@@ -64,6 +65,12 @@ async def nearby_reports(
     "/{request_id}/confirm",
     response_model=ConfirmResult,
     summary="«Теж бачу»: підтвердити існуючу заявку",
+    responses=errors(
+        404,
+        409,
+        e404="Заявку не знайдено",
+        e409="Заявку закрито, вона власна або вже підтверджена цим водієм",
+    ),
 )
 async def confirm_report(
     session: SessionDep,

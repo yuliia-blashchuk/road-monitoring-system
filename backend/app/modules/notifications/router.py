@@ -8,12 +8,13 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
 
+from app.core.openapi import errors
 from app.modules.notifications import repository as repo
 from app.modules.notifications import service  # noqa: F401  - підписка на події
 from app.modules.notifications.schemas import NotificationOut, NotificationPage, ReadAllOut
 from app.modules.users.dependencies import CurrentUser, SessionDep
 
-router = APIRouter(prefix="/notifications", tags=["notifications"])
+router = APIRouter(prefix="/notifications", tags=["notifications"], responses=errors(401))
 
 
 @router.get("", response_model=NotificationPage, summary="Мої сповіщення")
