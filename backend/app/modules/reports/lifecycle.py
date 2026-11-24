@@ -6,6 +6,9 @@
                           «В роботі» → «Виконана» → «Усунена» (підрядник)
     «Нова» / «Прийнята» → «Відхилена» (лише з причиною, БП-3)
 
+«Виконана» ставиться не через PATCH /status, а під час здачі робіт з фото «після»
+й актом (WORK_ORDER_ONLY, KAN-121).
+
 Для кожного переходу вказано ролі, яким він дозволений. Модуль не звертається
 до БД, тому правила можна перевірити звичайними тестами без бази.
 """
@@ -40,6 +43,16 @@ TRANSITIONS: dict[tuple[RequestStatus, RequestStatus], frozenset[AccessRole]] = 
     (DONE, RESOLVED): SERVICE_STAFF,
 }
 
+# Переходи, які не можна зробити через PATCH /reports/{id}/status, лише окремою дією.
+# «Виконана» - тільки під час здачі робіт POST /work-orders/{id}/progress з прогресом
+# 100 %, фото «після» й актом (DQ-08, БП-6, KAN-121); інакше акт можна обійти.
+WORK_ORDER_ONLY: dict[tuple[RequestStatus, RequestStatus], str] = {
+    (IN_PROGRESS, DONE): (
+        "Статус «Виконана» ставиться під час здачі робіт: вкажіть прогрес 100 % "
+        "і додайте фото «після» та акт виконаних робіт"
+    ),
+}
+
 # Кінцеві статуси: після них заявка закривається (closed_at, БП-4).
 FINAL_STATUSES = frozenset({RESOLVED, REJECTED})
 
@@ -54,11 +67,15 @@ STATUS_LABELS: dict[RequestStatus, str] = {
 
 
 def next_statuses(current: RequestStatus, role: AccessRole | None = None) -> list[RequestStatus]:
-    """Статуси, у які можна перейти з поточного (для ролі role або для будь-кого)."""
+    """Статуси, у які можна перейти з поточного (для ролі role або для будь-кого).
+
+    Для ролі це кнопки PATCH /status у кабінеті, тому переходи з WORK_ORDER_ONLY
+    (вони робляться окремою дією) до списку не входять.
+    """
     return [
         to
         for (frm, to), roles in TRANSITIONS.items()
-        if frm == current and (role is None or role in roles)
+        if frm == current and (role is None or (role in roles and (frm, to) not in WORK_ORDER_ONLY))
     ]
 
 

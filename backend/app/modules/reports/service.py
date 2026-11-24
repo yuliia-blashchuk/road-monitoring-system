@@ -228,7 +228,7 @@ async def change_status(
 
     Порядок перевірок: заявка існує (404) -> заявка в області дії ролі (403) ->
     перехід допустимий (409) -> роль може зробити цей перехід (403, БП-6) ->
-    поля запиту (422).
+    перехід робиться через PATCH, а не здачею робіт (409, KAN-121) -> поля запиту (422).
     """
     request = await repo.get_for_update(session, request_id)
     if request is None:
@@ -259,6 +259,11 @@ async def change_status(
         )
         exc.detail = check.message
         raise exc
+    # «Виконана» - лише під час здачі робіт з фото «після» й актом (DQ-08, БП-6):
+    # PATCH не має обходити цю перевірку (KAN-121).
+    hint = lifecycle.WORK_ORDER_ONLY.get((current, target))
+    if hint is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, hint)
     # Якщо роботи виконує підрядник, «Усунена» ставиться лише після його
     # «Виконана» з фотозвітом (UC-04, БП-6).
     if (

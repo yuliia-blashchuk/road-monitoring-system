@@ -5,7 +5,7 @@ from itertools import count
 
 import pytest
 from httpx import AsyncClient, Response
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.enums import ServiceKind
@@ -13,6 +13,7 @@ from app.modules.audit.models import AuditLog
 from app.modules.reports.models import Request, StatusHistory
 from app.modules.users.models import User
 from tests.factories import auth, make_contractor, make_driver, make_staff
+from tests.test_reports_photos import image_bytes
 
 URL = "/api/v1/reports"
 WEST_POINT = {"latitude": 49.84, "longitude": 23.98}
@@ -261,21 +262,62 @@ async def assign(db: AsyncSession, report_id: int, contractor: User) -> None:
     await db.commit()
 
 
+PDF = b"%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF"
+
+
+async def submit_work(client: AsyncClient, contractor: User, report_id: int) -> Response:
+    """Здача робіт підрядником: 100 %, фото «після» й акт (KAN-62, БП-6)."""
+    return await client.post(
+        f"/api/v1/work-orders/{report_id}/progress",
+        data={"progress_percent": "100"},
+        files=[
+            ("photos", ("after.jpg", image_bytes(), "image/jpeg")),
+            ("act", ("act.pdf", PDF, "application/pdf")),
+        ],
+        headers=auth(contractor),
+    )
+
+
 async def test_contractor_cycle(client: AsyncClient, db: AsyncSession) -> None:
-    """UC-04: підрядник «В роботі» → «Виконана», диспетчер підтверджує «Усунена»."""
+    """UC-04: підрядник «В роботі» → здача робіт («Виконана»), диспетчер ставить «Усунена»."""
     report = await new_report(client, db)
     dispatcher = await make_staff(db, "dispatcher", service_name=WEST)
     contractor = await make_contractor(db)
     await patch(client, dispatcher, report["id"], status="accepted")
     await assign(db, report["id"], contractor)
 
-    assert (await patch(client, contractor, report["id"], status="in_progress")).status_code == 200
-    done = await patch(client, contractor, report["id"], status="done")
-    assert done.status_code == 200
-    assert done.json()["next_statuses"] == []  # далі - лише служба
+    started = await patch(client, contractor, report["id"], status="in_progress")
+    assert started.status_code == 200
+    # «Виконана» - не кнопка PATCH, а здача робіт з актом (KAN-121).
+    assert started.json()["next_statuses"] == []
+    submitted = await submit_work(client, contractor, report["id"])
+    assert submitted.status_code == 200, submitted.text
+    assert submitted.json()["status"] == "done"
 
     resolved = await patch(client, dispatcher, report["id"], status="resolved")
     assert resolved.status_code == 200
+
+
+async def test_contractor_cannot_set_done_by_patch(client: AsyncClient, db: AsyncSession) -> None:
+    """KAN-121 (DQ-08, БП-6): «Виконана» через PATCH без акта - 409, статус не змінюється."""
+    report = await new_report(client, db)
+    dispatcher = await make_staff(db, "dispatcher", service_name=WEST)
+    contractor = await make_contractor(db)
+    await patch(client, dispatcher, report["id"], status="accepted")
+    await assign(db, report["id"], contractor)
+    await patch(client, contractor, report["id"], status="in_progress")
+
+    response = await patch(client, contractor, report["id"], status="done")
+    assert response.status_code == 409
+    assert "акт виконаних робіт" in response.json()["detail"]
+    assert (await db.get(Request, report["id"])).status == "in_progress"
+    assert len(await history(db, report["id"])) == 3  # new, accepted, in_progress
+    changed = await db.scalar(
+        select(func.count())
+        .select_from(AuditLog)
+        .where(AuditLog.action == "STATUS_CHANGED", AuditLog.new_value["status"].astext == "done")
+    )
+    assert changed == 0
 
 
 async def test_contractor_cannot_resolve(client: AsyncClient, db: AsyncSession) -> None:
@@ -286,7 +328,7 @@ async def test_contractor_cannot_resolve(client: AsyncClient, db: AsyncSession) 
     await patch(client, dispatcher, report["id"], status="accepted")
     await assign(db, report["id"], contractor)
     await patch(client, contractor, report["id"], status="in_progress")
-    await patch(client, contractor, report["id"], status="done")
+    assert (await submit_work(client, contractor, report["id"])).status_code == 200
 
     response = await patch(client, contractor, report["id"], status="resolved")
     assert response.status_code == 403

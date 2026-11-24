@@ -23,19 +23,24 @@ import asyncio
 import random
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from functools import cache
+from io import BytesIO
 
 from geoalchemy2 import WKTElement
+from PIL import Image, ImageDraw
 from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 import app.models  # noqa: F401
 from app.core.config import get_settings
 from app.core.database import SessionLocal
-from app.core.enums import ConsentType, Priority, RequestStatus
+from app.core.enums import ConsentType, PhotoKind, Priority, RequestStatus
 from app.core.security import hash_password
+from app.core.storage import get_storage
 from app.modules.admin.models import Contractor, ProblemType
 from app.modules.audit import service as audit
 from app.modules.notifications.models import Notification
-from app.modules.reports.models import Confirmation, Request, StatusHistory
+from app.modules.reports.models import Confirmation, Photo, Request, StatusHistory
 from app.modules.routing.service import route
 from app.modules.users import repository as repo
 from app.modules.users.models import User
@@ -364,7 +369,8 @@ async def create_reports(session, drivers: list[User], staff: Staff, rng: random
                 comment = request.reject_reason
             if step == S.DONE:
                 request.progress_percent = 100
-                comment = "Роботи завершено, акт додано"
+                comment = "Роботи здано: фото «після» й акт завантажено"
+                add_work_files(session, request, contractor_user, when)
             history.append(
                 StatusHistory(
                     request_id=request.id,
@@ -441,6 +447,67 @@ async def add_security_events(session, drivers: list[User], staff: Staff) -> Non
             result=result,
             new_value=value,
         ).created_at = now - ago
+
+
+@cache
+def demo_after_photo() -> bytes:
+    """Фото «після» для демо: однотонне зображення з підписом."""
+    image = Image.new("RGB", (640, 360), (118, 160, 124))
+    ImageDraw.Draw(image).text((24, 24), "RoadMap demo: after repair", fill=(255, 255, 255))
+    buffer = BytesIO()
+    image.save(buffer, "JPEG", quality=80)
+    return buffer.getvalue()
+
+
+@cache
+def demo_act_pdf() -> bytes:
+    """Односторінковий PDF «акт виконаних робіт» для демо."""
+    text = b"BT /F1 18 Tf 72 760 Td (RoadMap demo: act of completed works) Tj ET"
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] "
+        b"/Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
+        b"<< /Length %d >>\nstream\n%s\nendstream" % (len(text), text),
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    ]
+    out = bytearray(b"%PDF-1.4\n")
+    offsets = []
+    for number, body in enumerate(objects, start=1):
+        offsets.append(len(out))
+        out += b"%d 0 obj\n%s\nendobj\n" % (number, body)
+    xref = len(out)
+    out += b"xref\n0 %d\n0000000000 65535 f \n" % (len(objects) + 1)
+    out += b"".join(b"%010d 00000 n \n" % offset for offset in offsets)
+    out += b"trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (
+        len(objects) + 1,
+        xref,
+    )
+    return bytes(out)
+
+
+def add_work_files(
+    session: AsyncSession, request: Request, contractor: User, when: datetime
+) -> None:
+    """Здача робіт у демо - як у справжньому API: фото «після» й акт (DQ-08, БП-6, KAN-121)."""
+    storage = get_storage()
+    files = (
+        (PhotoKind.AFTER, demo_after_photo(), "image/jpeg", "jpg"),
+        (PhotoKind.ACT, demo_act_pdf(), "application/pdf", "pdf"),
+    )
+    for kind, data, mime_type, extension in files:
+        key = f"reports/{request.id}/demo-{kind.value}.{extension}"
+        storage.save(key, data)
+        photo = Photo(
+            request_id=request.id,
+            uploaded_by=contractor.id,
+            kind=kind,
+            storage_key=key,
+            mime_type=mime_type,
+            size_bytes=len(data),
+        )
+        photo.created_at = when
+        session.add(photo)
 
 
 async def seed(password: str) -> None:
