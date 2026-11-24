@@ -8,12 +8,13 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.core.access_control import AccessContext, require
+from app.core.openapi import errors
 from app.modules.audit import repository as repo
 from app.modules.audit import service as audit
 from app.modules.audit.schemas import AuditActionCount, AuditLogOut, AuditPage
 from app.modules.users.dependencies import SessionDep
 
-router = APIRouter(prefix="/audit", tags=["audit"])
+router = APIRouter(prefix="/audit", tags=["audit"], responses=errors(401, 403))
 
 ViewAudit = Annotated[AccessContext, Depends(require("audit", "view"))]
 

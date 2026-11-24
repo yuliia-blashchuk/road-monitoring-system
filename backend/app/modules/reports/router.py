@@ -5,6 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, File, Form, UploadFile, status
 
 from app.core.access_control import AccessContext, require
+from app.core.openapi import consent_or_access_denied, errors
 from app.modules.reports import service
 from app.modules.reports.photos import MAX_PHOTO_BYTES
 from app.modules.reports.schemas import (
@@ -16,7 +17,7 @@ from app.modules.reports.schemas import (
 )
 from app.modules.users.dependencies import SessionDep
 
-router = APIRouter(prefix="/reports", tags=["reports"])
+router = APIRouter(prefix="/reports", tags=["reports"], responses=errors(401))
 
 CreateReport = Annotated[AccessContext, Depends(require("report", "create"))]
 ChangeStatus = Annotated[AccessContext, Depends(require("report", "change_status"))]
@@ -29,7 +30,9 @@ ViewHistory = Annotated[AccessContext, Depends(require("report", "view_history")
     status_code=status.HTTP_201_CREATED,
     summary="Створити заявку (водій)",
     responses={
-        403: {"description": "Роль не водій або немає згоди personal_data"},
+        403: consent_or_access_denied(
+            "Роль не водій або бракує згоди personal_data / media_sharing"
+        ),
         422: {"description": "Помилка в полях: тип, координати, коментар, межі міста"},
         429: {"description": "Понад 10 заявок на годину з акаунта"},
     },

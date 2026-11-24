@@ -6,11 +6,12 @@ from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
 
 from app.core.access_control import AccessContext, require
 from app.core.enums import RequestStatus
+from app.core.openapi import errors
 from app.modules.users.dependencies import SessionDep
 from app.modules.work_orders import service
 from app.modules.work_orders.schemas import ProgressOut, WorkOrderAssignIn, WorkOrderOut
 
-router = APIRouter(prefix="/work-orders", tags=["work-orders"])
+router = APIRouter(prefix="/work-orders", tags=["work-orders"], responses=errors(401))
 
 AssignWork = Annotated[AccessContext, Depends(require("work", "assign"))]
 ViewWork = Annotated[AccessContext, Depends(require("work", "view"))]

@@ -9,12 +9,13 @@ from fastapi import APIRouter, Depends, Query, Request, Response
 
 from app.core.access_control import AccessContext, access_role, require
 from app.core.enums import AccessRole, RequestStatus
+from app.core.openapi import errors
 from app.modules.reports import read_service as service
 from app.modules.reports.read_schemas import MapReport, MyReportsPage, QueuePage, ReportCard
 from app.modules.users.dependencies import CurrentUser, SessionDep
 
 router = APIRouter(prefix="/reports", tags=["reports"])
-queue_router = APIRouter(prefix="/queue", tags=["reports"])
+queue_router = APIRouter(prefix="/queue", tags=["reports"], responses=errors(401, 403))
 
 ViewOwn = Annotated[AccessContext, Depends(require("report", "view_own"))]
 ViewInternal = Annotated[AccessContext, Depends(require("report", "view_internal"))]
@@ -55,7 +56,12 @@ async def map_reports(
     return await service.map_reports(session, status, type, bbox, limit)
 
 
-@router.get("/my", response_model=MyReportsPage, summary="Мої звернення (водій)")
+@router.get(
+    "/my",
+    response_model=MyReportsPage,
+    summary="Мої звернення (водій)",
+    responses=errors(401, 403),
+)
 async def my_reports(
     session: SessionDep,
     ctx: ViewOwn,
@@ -72,6 +78,7 @@ async def my_reports(
     response_model_exclude_unset=True,
     summary="Картка заявки",
     responses={
+        **errors(401),
         403: {"description": "Чужа заявка або роль без доступу"},
         404: {"description": "Заявку не знайдено"},
     },
@@ -87,6 +94,7 @@ async def report_card(request_id: int, session: SessionDep, ctx: ViewCard) -> Re
     summary="Файл фото або акта",
     response_class=Response,
     responses={
+        **errors(401),
         200: {"content": {"image/jpeg": {}, "image/png": {}, "application/pdf": {}}},
         403: {"description": "Немає доступу до фото цієї заявки"},
         404: {"description": "Фото не знайдено"},
