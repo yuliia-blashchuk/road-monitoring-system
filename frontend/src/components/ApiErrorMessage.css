@@ -1,0 +1,53 @@
+/* KAN-115 — повідомлення про помилку API */
+.rm-api-error {
+  margin: 0 0 16px;
+  padding: 12px 15px;
+  border: 1px solid #f3c7c1;
+  border-radius: 12px;
+  background: #fff0ef;
+  color: #8f2a1f;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.rm-api-error--network,
+.rm-api-error--timeout,
+.rm-api-error--rate_limit {
+  border-color: #f1dca2;
+  background: #fff8e6;
+  color: #7a5600;
+}
+
+.rm-api-error__title {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 14px;
+}
+
+.rm-api-error__text {
+  margin: 0;
+}
+
+.rm-api-error__fields {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+
+.rm-api-error__action {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 6px 12px;
+  border: 1px solid currentColor;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.rm-api-error__action:hover,
+.rm-api-error__action:focus-visible {
+  background: rgba(0, 0, 0, 0.05);
+}
