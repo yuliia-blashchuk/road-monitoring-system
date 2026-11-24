@@ -2,6 +2,8 @@
 // і Data Governance.
 // Права перевіряє бекенд; кожен перегляд журналу сам записується як AUDIT_VIEWED.
 
+import { requestApi } from './apiErrors'
+
 const API_URL =
   (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8000/api/v1'
 
@@ -89,23 +91,15 @@ export async function fetchAuditLog(
   limit: number,
   offset: number,
 ): Promise<AuditPage> {
-  let response: Response
-  try {
-    response = await fetch(`${API_URL}/audit?${buildQuery(filters, snapshot, limit, offset)}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-  } catch {
-    throw new Error('Сервер RoadMap недоступний. Перевірте, що бекенд запущено.')
-  }
-
-  if (response.status === 401) throw new Error('Сесія завершилась. Увійдіть знову.')
-  if (response.status === 403)
-    throw new Error('Журнал аудиту доступний лише адміністратору й Data Governance.')
-  if (response.status === 422)
-    throw new Error(
-      'Перевірте фільтри: наприклад, кінець періоду раніший за початок або ID не число.',
-    )
-  if (!response.ok) throw new Error(`Помилка сервера RoadMap (HTTP ${response.status}).`)
-
-  return (await response.json()) as AuditPage
+  return requestApi<AuditPage>(
+    `${API_URL}/audit?${buildQuery(filters, snapshot, limit, offset)}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+    {
+      messages: {
+        forbidden: 'Журнал аудиту доступний лише адміністратору й Data Governance.',
+        validation:
+          'Перевірте фільтри: наприклад, кінець періоду раніший за початок або ID не число.',
+      },
+    },
+  )
 }

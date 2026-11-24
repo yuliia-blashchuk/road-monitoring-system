@@ -12,6 +12,7 @@ import {
   type AuditFilters,
   type AuditPage,
 } from '../services/auditApi'
+import ApiErrorMessage from '../components/ApiErrorMessage'
 import './AuditLogPage.css'
 
 const PAGE_SIZE = 50
@@ -182,7 +183,7 @@ function formatTime(iso: string): string {
 }
 
 type Query = { filters: AuditFilters; snapshot: string; offset: number }
-type Result = { query: Query; page: AuditPage | null; error: string }
+type Result = { query: Query; page: AuditPage | null; error: unknown }
 
 function AuditLogPage() {
   const [draft, setDraft] = useState<AuditFilters>(EMPTY_FILTERS)
@@ -199,14 +200,14 @@ function AuditLogPage() {
     let active = true
     fetchAuditLog(token, query.filters, query.snapshot, PAGE_SIZE, query.offset)
       .then((page) => {
-        if (active) setResult({ query, page, error: '' })
+        if (active) setResult({ query, page, error: null })
       })
       .catch((err: unknown) => {
         if (active) {
           setResult({
             query,
             page: null,
-            error: err instanceof Error ? err.message : 'Не вдалося завантажити журнал.',
+            error: err,
           })
         }
       })
@@ -217,7 +218,7 @@ function AuditLogPage() {
 
   const loading = result?.query !== query
   const page = result?.page
-  const error = result?.error ?? ''
+  const error = result?.error ?? null
 
   function search(filters: AuditFilters) {
     setExpanded(null)
@@ -372,11 +373,7 @@ function AuditLogPage() {
         </div>
       </form>
 
-      {error && (
-        <p className="rm-audit-error" role="alert">
-          {error}
-        </p>
-      )}
+      <ApiErrorMessage error={error} onRetry={() => setQuery((q) => ({ ...q }))} />
 
       <div className="rm-audit-table-wrap">
         <table className="rm-audit-table">
