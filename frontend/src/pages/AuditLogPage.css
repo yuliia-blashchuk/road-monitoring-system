@@ -131,15 +131,6 @@
   cursor: default;
 }
 
-.rm-audit-error {
-  margin: 0 0 16px;
-  padding: 12px 15px;
-  border-radius: 12px;
-  background: #fff0ef;
-  color: #b23b2e;
-  font-size: 13px;
-}
-
 /* Таблиця */
 
 .rm-audit-table-wrap {
