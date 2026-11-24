@@ -6,10 +6,11 @@ from geoalchemy2 import Geometry
 from sqlalchemy import cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.enums import ConsentType, RequestStatus
+from app.core.enums import ConsentType, PhotoKind, RequestStatus
+from app.core.storage import get_storage
 from app.modules.admin.models import CityBoundary, ProblemType
 from app.modules.audit.models import AuditLog
-from app.modules.reports.models import Confirmation, Request, StatusHistory
+from app.modules.reports.models import Confirmation, Photo, Request, StatusHistory
 from app.modules.routing.service import route
 from app.modules.users.models import Consent, Role, User
 from app.scripts.seed_demo_data import EVENTS, seed
@@ -108,6 +109,22 @@ async def test_done_set_by_contractor_resolved_by_service(db: AsyncSession) -> N
     assert rows
     assert {code for status, code in rows if status == S.DONE} == {"contractor"}
     assert {code for status, code in rows if status == S.RESOLVED} <= {"dispatcher", "operator"}
+
+
+async def test_done_has_after_photo_and_act(db: AsyncSession) -> None:
+    """DQ-08, БП-6 (KAN-121): кожна здана підрядником робота має фото «після» й акт."""
+    await seed("Demo12345")
+    done_ids = set(
+        await db.scalars(select(StatusHistory.request_id).where(StatusHistory.to_status == S.DONE))
+    )
+    assert done_ids
+    files = (await db.execute(select(Photo.request_id, Photo.kind, Photo.storage_key))).all()
+    for kind in (PhotoKind.AFTER, PhotoKind.ACT):
+        assert done_ids <= {request_id for request_id, k, _ in files if k == kind}
+    storage = get_storage()
+    assert all(storage.exists(key) for _, _, key in files)
+    act = next(key for _, k, key in files if k == PhotoKind.ACT)
+    assert storage.read(act).startswith(b"%PDF")
 
 
 async def test_confirmations_match_counter(db: AsyncSession) -> None:
