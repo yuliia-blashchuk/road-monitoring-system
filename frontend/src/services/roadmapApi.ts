@@ -3,6 +3,7 @@
 // «Читання заявок»); у компонентах карти заявки перетворюються на RoadEvent.
 
 import type { RoadEvent, RoadEventStatus, RoadEventType } from '../data/mapEvents'
+import { errorFromBody, requestApi } from './apiErrors'
 
 const API_URL =
   (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8000/api/v1'
@@ -168,52 +169,23 @@ export type NotificationPage = Page<NotificationItem> & { unread: number }
 
 // ---------- спільний запит ----------
 
-type ApiErrorDetail = string | { loc?: (string | number)[]; msg?: string }[] | undefined
-
-// Текст помилки з відповіді бекенду: detail - рядок або список помилок полів (422).
-function errorText(status: number, detail: ApiErrorDetail): string {
-  if (typeof detail === 'string') return detail
-  if (Array.isArray(detail) && detail.length > 0) {
-    return detail.map((item) => item.msg ?? '').filter(Boolean).join('; ')
-  }
-  if (status === 401) return 'Сесія завершилась. Увійдіть знову.'
-  if (status === 403) return 'Недостатньо прав для цієї дії.'
-  if (status === 404) return 'Не знайдено.'
-  return `Помилка сервера RoadMap (HTTP ${status}).`
-}
-
-export class ApiError extends Error {
-  status: number
-
-  constructor(status: number, message: string) {
-    super(message)
-    this.status = status
-  }
-}
+// Помилки перетворюються на зрозумілі повідомлення в apiErrors.ts (KAN-115):
+// для користувача - текст українською без кодів HTTP і технічних деталей.
+export { ApiError } from './apiErrors'
 
 async function request<T>(path: string, options: RequestInit = {}, auth = true): Promise<T> {
   const headers = new Headers(options.headers)
   const token = getToken()
   if (auth && token) headers.set('Authorization', `Bearer ${token}`)
 
-  let response: Response
-  try {
-    response = await fetch(`${API_URL}${path}`, { ...options, headers })
-  } catch {
-    throw new ApiError(0, 'Сервер RoadMap недоступний. Перевірте, що бекенд запущено.')
-  }
-
-  if (!response.ok) {
-    let detail: ApiErrorDetail
-    try {
-      detail = ((await response.json()) as { detail?: ApiErrorDetail }).detail
-    } catch {
-      detail = undefined
-    }
-    throw new ApiError(response.status, errorText(response.status, detail))
-  }
-  if (response.status === 204) return undefined as T
-  return (await response.json()) as T
+  // Завантаження фото й акта може тривати довше за звичайний запит.
+  const timeoutMs = options.body instanceof FormData ? 60_000 : 15_000
+  const data = await requestApi<T | null>(
+    `${API_URL}${path}`,
+    { ...options, headers },
+    { timeoutMs },
+  )
+  return data as T
 }
 
 function query(params: Record<string, string | number | string[] | undefined>): string {
@@ -260,7 +232,12 @@ export async function getPhotoUrl(photo: PhotoInfo): Promise<string> {
   const response = await fetch(`${API_ORIGIN}${photo.url}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   })
-  if (!response.ok) throw new ApiError(response.status, 'Фото недоступне.')
+  if (!response.ok) {
+    throw errorFromBody(response.status, null, {
+      forbidden: 'Фото недоступне.',
+      not_found: 'Фото недоступне.',
+    })
+  }
   return URL.createObjectURL(await response.blob())
 }
 
@@ -374,7 +351,6 @@ export function toRoadEvent(report: MapReport): RoadEvent {
     createdAt: report.created_at,
   }
 }
-
 
 // ---------- дублікати поруч і «Теж бачу» (KAN-63) ----------
 
