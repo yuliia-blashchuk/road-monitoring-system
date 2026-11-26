@@ -44,7 +44,7 @@ const priorityLabels: Record<Priority, string> = {
 const ASSIGNABLE: RoadEventStatus[] = ['accepted', 'in_progress']
 
 function priorityClass(priority: Priority): string {
-  return priority === 'critical' ? 'high' : priority
+    return priority
 }
 
 function formatDate(value: string | null): string {
