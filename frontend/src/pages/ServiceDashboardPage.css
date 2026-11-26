@@ -291,7 +291,10 @@
 }
 
 /* Пріоритети */
-
+.rm-service-priority--critical {
+  background: #c62828;
+  color: #ffffff;
+}
 .rm-service-priority,
 .rm-service-status {
   display: inline-flex;
